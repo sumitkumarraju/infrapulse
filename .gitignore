@@ -33,3 +33,6 @@ dist-ssr
 
 # Third-party skills installed by `npx skills add` (see README)
 /.claude/skills
+
+# Server build output
+/server/dist

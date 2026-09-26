@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { MockLiveStream } from '@/data/mock/live'
+import { BumpUploader } from '@/features/driver/sensors/BumpUploader'
 
 const GRAVITY_ALPHA = 0.85
 const WINDOW = 120
@@ -27,6 +28,8 @@ export interface DetectedBump {
   at: number
   magnitude: number
   position: [number, number] | null
+  /** Speed at the moment of impact — the server stores it with the reading. */
+  speedMs?: number
 }
 
 export interface SensorState {
@@ -65,11 +68,20 @@ export function useBumpDetection(segmentIdForDemo: number | null = null) {
   const lastPosition = useRef<GeolocationCoordinates | null>(null)
   const watchId = useRef<number | null>(null)
   const simulating = useRef<ReturnType<typeof setInterval> | null>(null)
+  const uploader = useRef(new BumpUploader())
 
   const recordBump = useCallback(
-    (magnitude: number, position: [number, number] | null) => {
-      const bump: DetectedBump = { at: Date.now(), magnitude, position }
+    (magnitude: number, position: [number, number] | null, speedMs = 0) => {
+      const bump: DetectedBump = {
+        at: Date.now(),
+        magnitude,
+        position,
+        speedMs,
+      }
       setState((s) => ({ ...s, bumps: [bump, ...s.bumps].slice(0, 200) }))
+
+      // Batched to the API when one is configured; a no-op otherwise.
+      uploader.current.add(bump)
 
       if (navigator.vibrate) navigator.vibrate(40)
 
@@ -139,6 +151,7 @@ export function useBumpDetection(segmentIdForDemo: number | null = null) {
         recordBump(
           Math.abs(vertical),
           coords ? [coords.longitude, coords.latitude] : null,
+          coords?.speed ?? 0,
         )
       }
     },
@@ -215,6 +228,8 @@ export function useBumpDetection(segmentIdForDemo: number | null = null) {
   }, [onMotion, onOrientation])
 
   const stop = useCallback(() => {
+    // Whatever is still buffered goes now, while the page is certainly alive.
+    void uploader.current.flush()
     window.removeEventListener('devicemotion', onMotion)
     window.removeEventListener('deviceorientation', onOrientation)
     if (watchId.current !== null) {

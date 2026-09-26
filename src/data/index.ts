@@ -1,13 +1,26 @@
 import type { DataSource } from '@/data/DataSource'
+import { HttpDataSource } from '@/data/http/HttpDataSource'
 import { MockDataSource } from '@/data/mock/MockDataSource'
 
 /**
- * The one line that changes when a real backend arrives:
+ * The swap point.
  *
- *   export const dataSource: DataSource = new SupabaseDataSource()
+ * Unset `VITE_API_URL` and the app runs entirely in the browser against the
+ * deterministic mock — no server, no database, and the demo behaves identically
+ * on every machine. Set it and the same screens read from the API in `server/`:
  *
- * Nothing else in the app imports from `mock/`.
+ *   VITE_API_URL=http://localhost:8787 npm run dev
+ *
+ * Nothing else in the app imports from `mock/` or `http/`, so this is the only
+ * line that has to change.
  */
-export const dataSource: DataSource = new MockDataSource()
+const apiUrl = import.meta.env.VITE_API_URL
+
+export const dataSource: DataSource = apiUrl
+  ? new HttpDataSource(String(apiUrl).replace(/\/$/, ''))
+  : new MockDataSource()
+
+/** True when the app is talking to a real server. */
+export const isLive = Boolean(apiUrl)
 
 export type { DataSource }

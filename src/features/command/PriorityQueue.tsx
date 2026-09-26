@@ -59,18 +59,18 @@ export function PriorityQueue({
                 selectedId === segment.id && 'bg-accent-wash',
               )}
             >
-              <span className="metric w-6 shrink-0 text-metric-sm text-text-3">
+              <span className="metric text-metric-sm text-text-3 w-6 shrink-0">
                 {String(index + 1).padStart(2, '0')}
               </span>
 
               <span className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className="flex items-baseline gap-2">
-                  <span className="truncate text-sm text-text-1">
+                  <span className="text-text-1 truncate text-sm">
                     {segment.name}
                   </span>
                   {segment.nearSensitive && (
                     <span
-                      className="eyebrow shrink-0 text-accent"
+                      className="eyebrow text-accent shrink-0"
                       title="Within 300m of a school or hospital"
                     >
                       School

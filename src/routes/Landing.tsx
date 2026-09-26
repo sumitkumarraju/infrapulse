@@ -23,7 +23,10 @@ function Blocks() {
   const rng = useMemo(() => seedrandom('infrapulse-demo:city'), [])
 
   const blocks = useMemo(() => {
-    const result: { position: [number, number, number]; scale: [number, number, number] }[] = []
+    const result: {
+      position: [number, number, number]
+      scale: [number, number, number]
+    }[] = []
     for (let x = 0; x < GRID; x++) {
       for (let z = 0; z < GRID; z++) {
         // Leave the middle open so the camera has somewhere to look.
@@ -71,7 +74,10 @@ function Roads() {
               <planeGeometry args={[extent * 2, 0.36]} />
               <meshBasicMaterial color="#22D3EE" transparent opacity={0.5} />
             </mesh>
-            <mesh rotation={[-Math.PI / 2, 0, Math.PI / 2]} position={[offset, 0, 0]}>
+            <mesh
+              rotation={[-Math.PI / 2, 0, Math.PI / 2]}
+              position={[offset, 0, 0]}
+            >
               <planeGeometry args={[extent * 2, 0.36]} />
               <meshBasicMaterial color="#22D3EE" transparent opacity={0.5} />
             </mesh>
@@ -272,7 +278,7 @@ export function Landing() {
   }
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-void">
+    <div className="bg-void relative h-screen w-full overflow-hidden">
       {!failed && (
         <Canvas
           camera={{ position: [0, 15, 34], fov: 42 }}
@@ -293,7 +299,7 @@ export function Landing() {
           change lands on an already-dark screen. */}
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute inset-0 z-20 bg-void"
+        className="bg-void pointer-events-none absolute inset-0 z-20"
         initial={{ opacity: 0 }}
         animate={{ opacity: flying ? 1 : 0 }}
         transition={{
@@ -302,7 +308,7 @@ export function Landing() {
         }}
       />
 
-      <div className="pointer-events-none absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-void via-void/40 to-transparent p-10">
+      <div className="from-void via-void/40 pointer-events-none absolute inset-0 flex flex-col justify-end bg-gradient-to-t to-transparent p-10">
         <motion.div
           className="pointer-events-auto flex max-w-2xl flex-col items-start gap-5"
           animate={{ opacity: flying ? 0 : 1, y: flying ? 24 : 0 }}
@@ -314,7 +320,7 @@ export function Landing() {
 
           <h1 className="text-display">Predict before it breaks.</h1>
 
-          <p className="max-w-xl text-body text-text-2">
+          <p className="text-body text-text-2 max-w-xl">
             Every phone that drives a road is a sensor. InfraPulse turns those
             bumps into a condition score for every 50 metres of the network,
             forecasts which stretches fail next, and ranks the repairs that

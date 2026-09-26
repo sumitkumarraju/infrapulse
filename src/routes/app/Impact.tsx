@@ -23,15 +23,15 @@ export function Impact() {
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <div className="flex flex-col gap-1 rounded-card border border-hairline bg-surface-1 p-3">
+        <div className="rounded-card border-hairline bg-surface-1 flex flex-col gap-1 border p-3">
           <span className="eyebrow">Bumps</span>
           <CountUp value={liveBumps} className="text-metric-md" />
         </div>
-        <div className="flex flex-col gap-1 rounded-card border border-hairline bg-surface-1 p-3">
+        <div className="rounded-card border-hairline bg-surface-1 flex flex-col gap-1 border p-3">
           <span className="eyebrow">Reports</span>
           <CountUp value={mine.length} className="text-metric-md" />
         </div>
-        <div className="flex flex-col gap-1 rounded-card border border-hairline bg-surface-1 p-3">
+        <div className="rounded-card border-hairline bg-surface-1 flex flex-col gap-1 border p-3">
           <span className="eyebrow">Repaired</span>
           <CountUp
             value={mine.filter((r) => r.status === 'approved').length}
@@ -54,7 +54,7 @@ export function Impact() {
                     report.status === 'rejected' && 'bg-text-3',
                   )}
                 />
-                <span className="w-px flex-1 bg-hairline" />
+                <span className="bg-hairline w-px flex-1" />
               </span>
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-sm">{report.segmentName}</span>
@@ -66,7 +66,7 @@ export function Impact() {
             </li>
           ))}
           {mine.length === 0 && (
-            <li className="py-6 text-sm text-text-2">
+            <li className="text-text-2 py-6 text-sm">
               No reports yet. Photograph a pothole from the Report tab.
             </li>
           )}
@@ -82,7 +82,7 @@ export function Impact() {
               <div
                 key={badge.label}
                 className={cn(
-                  'flex flex-col gap-1 rounded-card border p-3',
+                  'rounded-card flex flex-col gap-1 border p-3',
                   earned
                     ? 'border-accent/40 bg-accent-wash'
                     : 'border-hairline bg-surface-1 opacity-60 grayscale',

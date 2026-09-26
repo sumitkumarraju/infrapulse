@@ -147,11 +147,15 @@ export function DemoControls() {
       aria-label="Demo controls"
     >
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <span className="eyebrow px-1 text-accent">Demo</span>
+        <span className="eyebrow text-accent px-1">Demo</span>
 
         {!collapsed && (
           <>
-            <Button size="sm" variant="secondary" onClick={() => void simulateDrive()}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => void simulateDrive()}
+            >
               Simulate drive
             </Button>
             <Button size="sm" variant="secondary" onClick={fastForward}>
@@ -159,7 +163,11 @@ export function DemoControls() {
                 ? 'Fast-forward 30 days'
                 : `+${fastForwardDays}d — back to today`}
             </Button>
-            <Button size="sm" variant="secondary" onClick={() => void verifyRepair()}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => void verifyRepair()}
+            >
               Verify a repair
             </Button>
             <Button
@@ -171,7 +179,11 @@ export function DemoControls() {
                 ? 'Presenter tour'
                 : `Stop tour (${tourStep + 1}/3)`}
             </Button>
-            <Button size="sm" variant="destructive" onClick={() => void reset()}>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => void reset()}
+            >
               Reset demo
             </Button>
           </>

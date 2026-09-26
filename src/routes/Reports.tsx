@@ -30,7 +30,7 @@ function DetectionBox({
 }) {
   return (
     <div
-      className="pointer-events-none absolute border-2 border-accent"
+      className="border-accent pointer-events-none absolute border-2"
       style={{
         left: `${report.box.x * 100}%`,
         top: `${report.box.y * 100}%`,
@@ -39,7 +39,7 @@ function DetectionBox({
       }}
     >
       {showLabel && (
-        <span className="metric absolute -top-5 left-0 rounded-chip bg-accent px-1 text-metric-sm whitespace-nowrap text-void">
+        <span className="metric rounded-chip bg-accent text-metric-sm text-void absolute -top-5 left-0 px-1 whitespace-nowrap">
           {report.label} {report.confidence.toFixed(2)}
         </span>
       )}
@@ -82,7 +82,7 @@ export function Reports() {
         </span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 rounded-card border border-hairline bg-surface-1 p-3">
+      <div className="rounded-card border-hairline bg-surface-1 flex flex-wrap items-center gap-4 border p-3">
         <div className="flex items-center gap-1">
           <span className="eyebrow mr-1">Severity</span>
           {SEVERITIES.map((value) => (
@@ -91,7 +91,7 @@ export function Reports() {
               type="button"
               onClick={() => setSeverity(severity === value ? null : value)}
               className={cn(
-                'rounded-full border border-hairline px-3 py-1 text-xs uppercase tracking-[0.06em] transition-colors duration-[120ms]',
+                'border-hairline rounded-full border px-3 py-1 text-xs tracking-[0.06em] uppercase transition-colors duration-[120ms]',
                 severity === value
                   ? 'border-accent/40 bg-accent-wash text-accent'
                   : 'text-text-2 hover:text-text-1',
@@ -110,7 +110,7 @@ export function Reports() {
               type="button"
               onClick={() => setStatus(status === value ? null : value)}
               className={cn(
-                'rounded-full border border-hairline px-3 py-1 text-xs uppercase tracking-[0.06em] transition-colors duration-[120ms]',
+                'border-hairline rounded-full border px-3 py-1 text-xs tracking-[0.06em] uppercase transition-colors duration-[120ms]',
                 status === value
                   ? 'border-accent/40 bg-accent-wash text-accent'
                   : 'text-text-2 hover:text-text-1',
@@ -121,7 +121,7 @@ export function Reports() {
           ))}
         </div>
 
-        <label className="ml-auto flex items-center gap-3 text-sm text-text-2">
+        <label className="text-text-2 ml-auto flex items-center gap-3 text-sm">
           <span className="eyebrow">Min confidence</span>
           <input
             type="range"
@@ -139,9 +139,9 @@ export function Reports() {
       </div>
 
       {filtered.length === 0 && !isLoading && (
-        <div className="flex flex-col items-start gap-2 rounded-card border border-dashed border-hairline p-10">
+        <div className="rounded-card border-hairline flex flex-col items-start gap-2 border border-dashed p-10">
           <h2 className="text-h3">Nothing matches these filters</h2>
-          <p className="text-sm text-text-2">
+          <p className="text-text-2 text-sm">
             Lower the confidence threshold or clear a filter to see more
             reports.
           </p>
@@ -164,7 +164,7 @@ export function Reports() {
             <button
               type="button"
               onClick={() => setLightbox(report)}
-              className="group flex w-full flex-col overflow-hidden rounded-card border border-hairline bg-surface-1 text-left"
+              className="group rounded-card border-hairline bg-surface-1 flex w-full flex-col overflow-hidden border text-left"
             >
               <span className="relative block aspect-[4/3] overflow-hidden">
                 <img
@@ -187,7 +187,7 @@ export function Reports() {
                   >
                     {report.status}
                   </Badge>
-                  <span className="metric ml-auto text-metric-sm text-text-2">
+                  <span className="metric text-metric-sm text-text-2 ml-auto">
                     {report.confidence.toFixed(2)}
                   </span>
                 </span>
@@ -204,14 +204,14 @@ export function Reports() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={transitions.panelEnter()}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-void/85 p-6"
+            className="bg-void/85 fixed inset-0 z-50 flex items-center justify-center p-6"
             onClick={() => setLightbox(null)}
             role="dialog"
             aria-modal
             aria-label={`Report ${lightbox.id}`}
           >
             <div
-              className="flex max-h-full w-full max-w-4xl flex-col gap-4 overflow-y-auto rounded-glass border border-hairline-strong bg-surface-1 p-5"
+              className="rounded-glass border-hairline-strong bg-surface-1 flex max-h-full w-full max-w-4xl flex-col gap-4 overflow-y-auto border p-5"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex flex-wrap items-baseline gap-3">
@@ -220,12 +220,12 @@ export function Reports() {
                 <Badge tone={SEVERITY_TONE[lightbox.severity]}>
                   {lightbox.severity}
                 </Badge>
-                <span className="metric ml-auto text-metric-sm text-text-2">
+                <span className="metric text-metric-sm text-text-2 ml-auto">
                   {new Date(lightbox.createdAt).toLocaleString('en-IN')}
                 </span>
               </div>
 
-              <div className="relative overflow-hidden rounded-card">
+              <div className="rounded-card relative overflow-hidden">
                 <img
                   src={lightbox.imageUrl}
                   alt={`${lightbox.label} on ${lightbox.segmentName}`}
@@ -235,7 +235,7 @@ export function Reports() {
               </div>
 
               <div className="flex flex-wrap items-center gap-4">
-                <span className="text-sm text-text-2">
+                <span className="text-text-2 text-sm">
                   Reported by{' '}
                   <span className="text-text-1">{lightbox.reporter}</span>
                 </span>

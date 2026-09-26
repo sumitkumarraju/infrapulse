@@ -6,7 +6,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Map, { useControl, type MapRef } from 'react-map-gl/maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '@/components/map/mapWorker'
-import { CENTER, INITIAL_VIEW, darkStyle, liteStyle } from '@/components/map/darkStyle'
+import {
+  CENTER,
+  INITIAL_VIEW,
+  darkStyle,
+  liteStyle,
+} from '@/components/map/darkStyle'
 import type { SegmentWithStatus } from '@/data/hooks'
 import { BAND_WIDTH, scoreColorRgba } from '@/lib/health'
 import { cn } from '@/lib/utils'
@@ -51,9 +56,7 @@ function hasWebGl(): boolean {
   if (typeof document === 'undefined') return false
   try {
     const canvas = document.createElement('canvas')
-    return Boolean(
-      canvas.getContext('webgl2') ?? canvas.getContext('webgl'),
-    )
+    return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'))
   } catch {
     return false
   }
@@ -206,7 +209,10 @@ export function CityMap({
           getColor: (d) => {
             const score = scoreOf(d)
             const alpha = score < 40 ? 80 : score < 70 ? 55 : 35
-            return scoreColorRgba(score, dimmed && !fundedIds?.has(d.id) ? 12 : alpha)
+            return scoreColorRgba(
+              score,
+              dimmed && !fundedIds?.has(d.id) ? 12 : alpha,
+            )
           },
           getWidth: (d) => BAND_WIDTH[d.status.band] * 4,
           widthUnits: 'pixels',
@@ -377,7 +383,7 @@ export function CityMap({
 
       {hover && (
         <div
-          className="pointer-events-none absolute z-20 rounded-chip border border-hairline-strong bg-void/90 px-2 py-1 font-mono text-metric-sm text-text-1"
+          className="rounded-chip border-hairline-strong bg-void/90 text-metric-sm text-text-1 pointer-events-none absolute z-20 border px-2 py-1 font-mono"
           style={{ left: hover.x + 12, top: hover.y + 12 }}
         >
           SEG-{String(hover.segment.id).padStart(4, '0')} · score{' '}
@@ -390,10 +396,10 @@ export function CityMap({
         <button
           type="button"
           onClick={() => setLite(false)}
-          className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-chip border border-hairline-strong bg-void/85 px-3 py-1.5 text-xs text-text-2 hover:text-text-1"
+          className="rounded-chip border-hairline-strong bg-void/85 text-text-2 hover:text-text-1 absolute bottom-4 left-1/2 z-20 -translate-x-1/2 border px-3 py-1.5 text-xs"
         >
-          LITE MODE — 3D is off because this machine could not hold 30fps. Tap to
-          try again.
+          LITE MODE — 3D is off because this machine could not hold 30fps. Tap
+          to try again.
         </button>
       )}
     </div>

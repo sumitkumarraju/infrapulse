@@ -90,8 +90,8 @@ export function KpiBar() {
 
       <div className="flex items-center gap-2 pl-2">
         <span className="relative flex size-2">
-          <span className="absolute inline-flex size-2 animate-ping rounded-full bg-accent opacity-75" />
-          <span className="relative inline-flex size-2 rounded-full bg-accent" />
+          <span className="bg-accent absolute inline-flex size-2 animate-ping rounded-full opacity-75" />
+          <span className="bg-accent relative inline-flex size-2 rounded-full" />
         </span>
         <span className="eyebrow text-accent">Live</span>
       </div>

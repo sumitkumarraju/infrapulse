@@ -17,7 +17,7 @@
     "jsx": "react-jsx",
 
     /* Paths */
-    "paths": { "@/*": ["./src/*"] },
+    "paths": { "@/*": ["./src/*"], "@shared/*": ["./shared/*"] },
 
     /* Linting */
     "noUnusedLocals": true,
@@ -25,5 +25,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src", "shared"]
 }

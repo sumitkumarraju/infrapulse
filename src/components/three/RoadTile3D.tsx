@@ -79,7 +79,7 @@ export function RoadTile3D({
     // Lite fallback: never a blank rectangle where a visual should be.
     return (
       <div
-        className="flex h-[200px] items-center justify-center rounded-card border border-hairline bg-surface-2 text-sm text-text-2"
+        className="rounded-card border-hairline bg-surface-2 text-text-2 flex h-[200px] items-center justify-center border text-sm"
         role="img"
         aria-label="3D road preview unavailable on this device"
       >
@@ -90,7 +90,7 @@ export function RoadTile3D({
 
   return (
     <div
-      className="h-[200px] overflow-hidden rounded-card border border-hairline bg-void"
+      className="rounded-card border-hairline bg-void h-[200px] overflow-hidden border"
       role="img"
       aria-label={`3D preview of the road surface, condition score ${Math.round(score)}`}
       onClick={() => setSpinning((s) => !s)}

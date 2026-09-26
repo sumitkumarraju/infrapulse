@@ -201,7 +201,7 @@ export function Forecast() {
             </div>
           </div>
 
-          <p className="text-sm text-text-2">
+          <p className="text-text-2 text-sm">
             Amber stretches of the track are the monsoon months, when
             deterioration runs two and a half times faster. Roads recolour and
             towers grow as the date moves.

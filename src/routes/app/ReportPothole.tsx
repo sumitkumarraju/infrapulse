@@ -41,11 +41,11 @@ export function ReportPothole() {
   if (stage === 'submitted') {
     return (
       <div className="flex min-h-[calc(100vh-5rem)] flex-col items-center justify-center gap-5 px-8 text-center">
-        <span className="flex size-16 items-center justify-center rounded-full bg-health-good/15 text-h2 text-health-good">
+        <span className="bg-health-good/15 text-h2 text-health-good flex size-16 items-center justify-center rounded-full">
           ✓
         </span>
         <h1 className="text-h2">Thank you</h1>
-        <p className="max-w-sm text-sm text-text-2">
+        <p className="text-text-2 max-w-sm text-sm">
           Your report is queued for review by the works engineer. Approved
           reports lower the condition score for that stretch of road
           immediately.
@@ -69,7 +69,7 @@ export function ReportPothole() {
         <h1 className="text-h2">Photograph the damage</h1>
       </div>
 
-      <div className="relative overflow-hidden rounded-card border border-hairline bg-surface-3">
+      <div className="rounded-card border-hairline bg-surface-3 relative overflow-hidden border">
         <img
           src={`/mock-photos/road-${(shot % 8) + 1}.svg`}
           alt="Road surface in the camera view"
@@ -81,7 +81,7 @@ export function ReportPothole() {
             initial={{ y: '-10%' }}
             animate={{ y: '110%' }}
             transition={{ duration: 1.2, ease: 'linear' }}
-            className="absolute inset-x-0 h-1 bg-accent shadow-[0_0_24px_var(--color-accent)]"
+            className="bg-accent absolute inset-x-0 h-1 shadow-[0_0_24px_var(--color-accent)]"
           />
         )}
 
@@ -91,7 +91,7 @@ export function ReportPothole() {
               initial={{ opacity: 0, scale: 1.15 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
-              className="absolute border-2 border-accent"
+              className="border-accent absolute border-2"
               style={{
                 left: `${box.x * 100}%`,
                 top: `${box.y * 100}%`,
@@ -99,7 +99,7 @@ export function ReportPothole() {
                 height: `${box.h * 100}%`,
               }}
             >
-              <span className="metric absolute -top-6 left-0 rounded-chip bg-accent px-1.5 text-metric-sm whitespace-nowrap text-white">
+              <span className="metric rounded-chip bg-accent text-metric-sm absolute -top-6 left-0 px-1.5 whitespace-nowrap text-white">
                 pothole {confidence.toFixed(2)}
               </span>
             </motion.div>
@@ -114,7 +114,7 @@ export function ReportPothole() {
       )}
 
       {stage === 'scanning' && (
-        <p className="text-sm text-text-2">Scanning the surface…</p>
+        <p className="text-text-2 text-sm">Scanning the surface…</p>
       )}
 
       {stage === 'detected' && (
@@ -127,7 +127,7 @@ export function ReportPothole() {
                   key={option.value}
                   type="button"
                   onClick={() => setSeverity(option.value)}
-                  className={`min-h-[48px] flex-1 rounded-control border text-sm ${
+                  className={`rounded-control min-h-[48px] flex-1 border text-sm ${
                     severity === option.value
                       ? 'border-accent bg-accent-wash text-accent'
                       : 'border-hairline text-text-2'

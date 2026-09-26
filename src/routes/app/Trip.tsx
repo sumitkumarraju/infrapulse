@@ -157,7 +157,7 @@ export function Trip() {
         <h1 className="text-h2">Trip summary</h1>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1 rounded-card border border-hairline bg-surface-1 p-4">
+          <div className="rounded-card border-hairline bg-surface-1 flex flex-col gap-1 border p-4">
             <span className="eyebrow">Distance</span>
             <CountUp
               value={state.distanceM / 1000}
@@ -166,14 +166,14 @@ export function Trip() {
               className="text-metric-lg"
             />
           </div>
-          <div className="flex flex-col gap-1 rounded-card border border-hairline bg-surface-1 p-4">
+          <div className="rounded-card border-hairline bg-surface-1 flex flex-col gap-1 border p-4">
             <span className="eyebrow">Bumps detected</span>
             <CountUp
               value={state.bumps.length}
               className="text-metric-lg text-health-critical"
             />
           </div>
-          <div className="flex flex-col gap-1 rounded-card border border-hairline bg-surface-1 p-4">
+          <div className="rounded-card border-hairline bg-surface-1 flex flex-col gap-1 border p-4">
             <span className="eyebrow">Roughest hit</span>
             <CountUp
               value={roughest}
@@ -182,7 +182,7 @@ export function Trip() {
               className="text-metric-md"
             />
           </div>
-          <div className="flex flex-col gap-1 rounded-card border border-hairline bg-surface-1 p-4">
+          <div className="rounded-card border-hairline bg-surface-1 flex flex-col gap-1 border p-4">
             <span className="eyebrow">Bumps per km</span>
             <CountUp
               value={
@@ -230,7 +230,7 @@ export function Trip() {
             className="text-metric-lg text-health-critical"
           />
 
-          <div className="h-16 overflow-hidden rounded-card border border-hairline bg-surface-1">
+          <div className="rounded-card border-hairline bg-surface-1 h-16 overflow-hidden border">
             <Canvas camera={{ position: [0, 1.6, 2.6], fov: 40 }}>
               <ambientLight intensity={0.7} />
               <directionalLight position={[2, 4, 2]} intensity={1.2} />
@@ -241,7 +241,7 @@ export function Trip() {
       </div>
 
       <div
-        className={`relative overflow-hidden rounded-card border bg-surface-1 ${
+        className={`rounded-card bg-surface-1 relative overflow-hidden border ${
           flash ? 'border-health-critical' : 'border-hairline'
         }`}
       >
@@ -255,7 +255,7 @@ export function Trip() {
               animate={{ opacity: 1, y: -28 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.9 }}
-              className="metric absolute right-4 bottom-2 rounded-full bg-health-critical px-2 py-0.5 text-metric-sm text-white"
+              className="metric bg-health-critical text-metric-sm absolute right-4 bottom-2 rounded-full px-2 py-0.5 text-white"
             >
               +1 bump
             </motion.span>
@@ -264,10 +264,10 @@ export function Trip() {
       </div>
 
       {!state.running && (
-        <div className="flex flex-col gap-3 rounded-card border border-hairline bg-surface-1 p-4">
-          <p className="text-sm text-text-2">
-            Motion and location permissions are requested on the tap below —
-            iOS only grants them from inside the gesture.
+        <div className="rounded-card border-hairline bg-surface-1 flex flex-col gap-3 border p-4">
+          <p className="text-text-2 text-sm">
+            Motion and location permissions are requested on the tap below — iOS
+            only grants them from inside the gesture.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button size="lg" onClick={() => void start()}>
@@ -278,7 +278,7 @@ export function Trip() {
             </Button>
           </div>
           {state.permission === 'denied' && (
-            <p className="text-sm text-health-critical">
+            <p className="text-health-critical text-sm">
               Motion access was declined. Simulate a drive instead, or allow
               motion in the browser settings.
             </p>

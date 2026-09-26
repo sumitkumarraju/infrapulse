@@ -6,7 +6,16 @@
    red to green passes through a muddy brown, which is exactly the range where
    an engineer has to tell "watch" from "about to fail". */
 
-export type HealthBand = 'good' | 'watch' | 'critical'
+export type { HealthBand } from '@shared/contract'
+export {
+  BAND_GLOW,
+  BAND_LABEL,
+  BAND_THRESHOLDS,
+  BAND_WIDTH,
+  scoreBand,
+} from '@shared/bands'
+
+import type { HealthBand } from '@shared/contract'
 
 export interface Rgb {
   r: number
@@ -14,36 +23,10 @@ export interface Rgb {
   b: number
 }
 
-/** Thresholds from UI_DESIGN 1.4. Good >= 70, watch 40-69, critical < 40. */
-export function scoreBand(score: number): HealthBand {
-  if (score >= 70) return 'good'
-  if (score >= 40) return 'watch'
-  return 'critical'
-}
-
 export const BAND_COLOR: Record<HealthBand, string> = {
   good: '#6EE7B7',
   watch: '#FBBF24',
   critical: '#F43F5E',
-}
-
-/** Stroke width in px, so colour is never the only signal (UI_DESIGN 1.4). */
-export const BAND_WIDTH: Record<HealthBand, number> = {
-  good: 3,
-  watch: 4,
-  critical: 5,
-}
-
-export const BAND_GLOW: Record<HealthBand, number> = {
-  good: 0.35,
-  watch: 0.55,
-  critical: 0.8,
-}
-
-export const BAND_LABEL: Record<HealthBand, string> = {
-  good: 'Good',
-  watch: 'Watch',
-  critical: 'Critical',
 }
 
 /**

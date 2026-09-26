@@ -8,7 +8,7 @@
  */
 
 import seedrandom from 'seedrandom'
-import { PHOTO_BOXES } from '@/data/mock/photoBoxes'
+import { PHOTO_BOXES } from '@shared/photoBoxes'
 import type { LiveEvent, Segment, SegmentStatus } from '@/data/types'
 
 export const CHANNEL_NAME = 'infrapulse'
@@ -28,7 +28,8 @@ export class MockLiveStream {
   private timer: ReturnType<typeof setTimeout> | null = null
   private channel: BroadcastChannel | null = null
   private rng = seedrandom('infrapulse-demo:live')
-  private weighted: { segment: Segment; status: SegmentStatus; w: number }[] = []
+  private weighted: { segment: Segment; status: SegmentStatus; w: number }[] =
+    []
   private totalWeight = 0
   private speed: number
   private running = false

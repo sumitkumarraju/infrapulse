@@ -21,7 +21,10 @@ const COLUMNS: { status: WorkOrderStatus; label: string }[] = [
 ]
 
 function ageInDays(iso: string) {
-  return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 86_400_000))
+  return Math.max(
+    0,
+    Math.round((Date.now() - new Date(iso).getTime()) / 86_400_000),
+  )
 }
 
 function initials(name: string) {
@@ -46,7 +49,8 @@ function Card({
   const improvement =
     order.bumpRateAfter !== undefined && order.bumpRateBefore > 0
       ? Math.round(
-          ((order.bumpRateBefore - order.bumpRateAfter) / order.bumpRateBefore) *
+          ((order.bumpRateBefore - order.bumpRateAfter) /
+            order.bumpRateBefore) *
             100,
         )
       : null
@@ -71,13 +75,12 @@ function Card({
           .elementsFromPoint(point.x, point.y)
           .find((el) => el instanceof HTMLElement && el.dataset.column)
         const status = (element as HTMLElement | undefined)?.dataset.column as
-          | WorkOrderStatus
-          | undefined
+          WorkOrderStatus | undefined
         if (status && status !== order.status) onMove(order.id, status)
       }}
       className={cn(
-        'relative cursor-grab list-none rounded-card border border-hairline bg-surface-2 p-3',
-        celebrating && 'ring-2 ring-health-good',
+        'rounded-card border-hairline bg-surface-2 relative cursor-grab list-none border p-3',
+        celebrating && 'ring-health-good ring-2',
       )}
     >
       {celebrating && (
@@ -86,7 +89,7 @@ function Card({
           initial={{ x: '-110%' }}
           animate={{ x: '110%' }}
           transition={{ duration: 0.7, ease: [0.34, 1.56, 0.64, 1] }}
-          className="pointer-events-none absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-health-good/25 to-transparent"
+          className="via-health-good/25 pointer-events-none absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent to-transparent"
         />
       )}
 
@@ -102,11 +105,11 @@ function Card({
         <span className="metric text-metric-sm text-text-2">
           {formatInr(order.costInr)}
         </span>
-        <span className="metric ml-auto text-metric-sm text-text-3">
+        <span className="metric text-metric-sm text-text-3 ml-auto">
           {ageInDays(order.createdAt)}d
         </span>
         <span
-          className="flex size-6 items-center justify-center rounded-full bg-surface-3 text-xs text-text-2"
+          className="bg-surface-3 text-text-2 flex size-6 items-center justify-center rounded-full text-xs"
           title={order.assignee}
         >
           {initials(order.assignee)}
@@ -114,7 +117,7 @@ function Card({
       </div>
 
       {improvement !== null && (
-        <p className="mt-2 text-xs text-health-good">
+        <p className="text-health-good mt-2 text-xs">
           Bumps {order.bumpRateBefore} → {order.bumpRateAfter} per 100 passes,{' '}
           {improvement}% better
         </p>
@@ -176,7 +179,7 @@ export function WorkOrders() {
         <span className="metric text-metric-sm text-text-2">
           {orders.length} total
         </span>
-        <p className="ml-auto text-sm text-text-2">
+        <p className="text-text-2 ml-auto text-sm">
           Drag a card between columns, or use the arrows.
         </p>
       </div>
@@ -188,12 +191,12 @@ export function WorkOrders() {
             <section
               key={column.status}
               data-column={column.status}
-              className="flex min-h-0 flex-col rounded-card border border-hairline bg-surface-1"
+              className="rounded-card border-hairline bg-surface-1 flex min-h-0 flex-col border"
               aria-label={column.label}
             >
               <header
                 data-column={column.status}
-                className="flex items-baseline justify-between border-b border-hairline px-3 py-2"
+                className="border-hairline flex items-baseline justify-between border-b px-3 py-2"
               >
                 <h2 className="eyebrow">{column.label}</h2>
                 <span className="metric text-metric-sm text-text-2">
@@ -219,7 +222,7 @@ export function WorkOrders() {
                 {items.length === 0 && !isLoading && (
                   <li
                     data-column={column.status}
-                    className="rounded-card border border-dashed border-hairline p-4 text-center text-xs text-text-3"
+                    className="rounded-card border-hairline text-text-3 border border-dashed p-4 text-center text-xs"
                   >
                     Drop here
                   </li>

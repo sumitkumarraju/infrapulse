@@ -191,9 +191,9 @@ describe('budget allocation', () => {
 
   it('never exceeds the budget', () => {
     for (const budget of [0, 5_00_000, 50_00_000, 5_00_00_000]) {
-      expect(greedyAllocate(candidates, budget).totalCostInr).toBeLessThanOrEqual(
-        budget,
-      )
+      expect(
+        greedyAllocate(candidates, budget).totalCostInr,
+      ).toBeLessThanOrEqual(budget)
     }
   })
 

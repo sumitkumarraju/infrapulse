@@ -12,7 +12,7 @@ export function Drive() {
       <div className="flex flex-col items-center gap-2 text-center">
         <span className="eyebrow text-accent">InfraPulse driver</span>
         <h1 className="text-h2">Every drive maps a road</h1>
-        <p className="max-w-sm text-sm text-text-2">
+        <p className="text-text-2 max-w-sm text-sm">
           Mount the phone, start the trip, and drive normally. Bumps are
           detected on the device — nothing but the bump is recorded.
         </p>
@@ -21,7 +21,7 @@ export function Drive() {
       <button
         type="button"
         onClick={() => navigate('/app/trip')}
-        className="flex size-[200px] flex-col items-center justify-center gap-1 rounded-full bg-accent text-surface-1 shadow-[0_18px_50px_rgba(14,116,144,0.35)] transition-transform duration-[120ms] active:scale-95"
+        className="bg-accent text-surface-1 flex size-[200px] flex-col items-center justify-center gap-1 rounded-full shadow-[0_18px_50px_rgba(14,116,144,0.35)] transition-transform duration-[120ms] active:scale-95"
       >
         <span className="text-h2 text-white">Start Trip</span>
         <span className="text-xs tracking-[0.06em] text-white/80 uppercase">

@@ -44,28 +44,28 @@ function Waterfall({ segment }: { segment: SegmentWithStatus }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between">
-        <span className="text-sm text-text-2">Perfect road</span>
+        <span className="text-text-2 text-sm">Perfect road</span>
         <span className="metric text-metric-sm">100</span>
       </div>
 
       {steps.map((step) => (
         <div key={step.label} className="flex flex-col gap-1">
           <div className="flex items-baseline justify-between">
-            <span className="text-sm text-text-2">{step.label}</span>
+            <span className="text-text-2 text-sm">{step.label}</span>
             <span className="metric text-metric-sm text-health-critical">
               −{step.value.toFixed(1)}
             </span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
+          <div className="bg-surface-3 h-1.5 overflow-hidden rounded-full">
             <div
-              className="h-full rounded-full bg-health-critical/70"
+              className="bg-health-critical/70 h-full rounded-full"
               style={{ width: `${(step.value / total) * 100}%` }}
             />
           </div>
         </div>
       ))}
 
-      <div className="mt-1 flex items-baseline justify-between border-t border-hairline pt-2">
+      <div className="border-hairline mt-1 flex items-baseline justify-between border-t pt-2">
         <span className="text-sm">Today</span>
         <span
           className="metric text-metric-md"
@@ -148,13 +148,13 @@ export function SegmentDrawer({
         >
           <GlassPanel
             as="section"
-            className="flex h-full flex-col overflow-y-auto bg-surface-1/92 p-5"
+            className="bg-surface-1/92 flex h-full flex-col overflow-y-auto p-5"
             aria-label={`Segment ${segment.name}`}
             static
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex min-w-0 flex-col gap-2">
-                <h2 className="truncate text-h2">{segment.name}</h2>
+                <h2 className="text-h2 truncate">{segment.name}</h2>
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge>{segment.roadClass}</Badge>
                   {segment.nearSensitive && (
@@ -191,12 +191,15 @@ export function SegmentDrawer({
 
             <h3 className="eyebrow mt-6 mb-2">
               180-day history
-              <span className="ml-2 normal-case text-text-3">simulated</span>
+              <span className="text-text-3 ml-2 normal-case">simulated</span>
             </h3>
-            <div className="shrink-0 h-40">
+            <div className="h-40 shrink-0">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={historyData}>
-                  <CartesianGrid stroke="var(--color-hairline)" vertical={false} />
+                  <CartesianGrid
+                    stroke="var(--color-hairline)"
+                    vertical={false}
+                  />
                   <XAxis
                     dataKey="label"
                     tick={{ fill: 'var(--color-text-3)', fontSize: 10 }}
@@ -233,10 +236,13 @@ export function SegmentDrawer({
             </p>
 
             <h3 className="eyebrow mt-6 mb-2">90-day forecast</h3>
-            <div className="shrink-0 h-40">
+            <div className="h-40 shrink-0">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={forecastData}>
-                  <CartesianGrid stroke="var(--color-hairline)" vertical={false} />
+                  <CartesianGrid
+                    stroke="var(--color-hairline)"
+                    vertical={false}
+                  />
                   <XAxis
                     dataKey="label"
                     tick={{ fill: 'var(--color-text-3)', fontSize: 10 }}
@@ -291,7 +297,7 @@ export function SegmentDrawer({
               ).map(([label, risk]) => (
                 <div
                   key={label}
-                  className="flex flex-col gap-1 rounded-card border border-hairline bg-surface-1/70 p-3"
+                  className="rounded-card border-hairline bg-surface-1/70 flex flex-col gap-1 border p-3"
                 >
                   <span className="eyebrow">{label}</span>
                   <span
@@ -300,13 +306,13 @@ export function SegmentDrawer({
                   >
                     {Math.round(risk * 100)}%
                   </span>
-                  <span className="text-xs text-text-3">chance of failing</span>
+                  <span className="text-text-3 text-xs">chance of failing</span>
                 </div>
               ))}
             </div>
 
-            <div className="mt-5 flex items-baseline justify-between rounded-card border border-hairline bg-surface-1/70 p-3">
-              <span className="text-sm text-text-2">
+            <div className="rounded-card border-hairline bg-surface-1/70 mt-5 flex items-baseline justify-between border p-3">
+              <span className="text-text-2 text-sm">
                 Estimated {segment.status.repairType}
               </span>
               <span className="metric text-metric-md">

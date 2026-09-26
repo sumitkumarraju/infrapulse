@@ -67,7 +67,10 @@ export class MockDataSource implements DataSource {
     const photos = generatePhotoReports(segments, scores)
     const photoCounts = new Map<number, number>()
     for (const photo of photos) {
-      photoCounts.set(photo.segmentId, (photoCounts.get(photo.segmentId) ?? 0) + 1)
+      photoCounts.set(
+        photo.segmentId,
+        (photoCounts.get(photo.segmentId) ?? 0) + 1,
+      )
     }
 
     const statuses = segments.map((segment) =>
@@ -167,9 +170,7 @@ export class MockDataSource implements DataSource {
 
     // Never open a second order on a segment that already has one live.
     const alreadyOpen = new Set(
-      existing
-        .filter((w) => w.status !== 'verified')
-        .map((w) => w.segmentId),
+      existing.filter((w) => w.status !== 'verified').map((w) => w.segmentId),
     )
 
     const now = new Date().toISOString()
@@ -197,7 +198,7 @@ export class MockDataSource implements DataSource {
           createdAt: now,
           updatedAt: now,
           bumpRateBefore:
-            Math.round((status?.bumpsLast7Days ?? 20) / 7 * 10) / 10,
+            Math.round(((status?.bumpsLast7Days ?? 20) / 7) * 10) / 10,
         }
       })
 

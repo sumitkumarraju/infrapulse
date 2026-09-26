@@ -43,26 +43,28 @@ export function ActivityFeed({
               <button
                 type="button"
                 onClick={() => onSelect(event.segmentId)}
-                className="flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-left hover:bg-surface-2/60"
+                className="rounded-control hover:bg-surface-2/60 flex w-full items-center gap-2 px-2 py-1.5 text-left"
               >
-                <span className="metric shrink-0 text-metric-sm text-text-3">
+                <span className="metric text-metric-sm text-text-3 shrink-0">
                   {timeOf(event.at)}
                 </span>
 
                 {event.type === 'bump' && (
                   <>
-                    <span className="text-sm text-text-2">
+                    <span className="text-text-2 text-sm">
                       bump{' '}
                       <span className="metric text-text-1">
                         {event.magnitude.toFixed(1)}
                       </span>{' '}
                       m/s²
                     </span>
-                    <span className="metric ml-auto shrink-0 text-metric-sm text-text-3">
+                    <span className="metric text-metric-sm text-text-3 ml-auto shrink-0">
                       SEG-{String(event.segmentId).padStart(4, '0')}
                     </span>
                     {event.real && (
-                      <span className="eyebrow shrink-0 text-accent">Phone</span>
+                      <span className="eyebrow text-accent shrink-0">
+                        Phone
+                      </span>
                     )}
                   </>
                 )}
@@ -72,19 +74,19 @@ export function ActivityFeed({
                     <img
                       src={event.report.imageUrl}
                       alt=""
-                      className="size-8 shrink-0 rounded-chip object-cover"
+                      className="rounded-chip size-8 shrink-0 object-cover"
                     />
-                    <span className="truncate text-sm text-text-2">
+                    <span className="text-text-2 truncate text-sm">
                       photo · {event.report.label}
                     </span>
-                    <span className="metric ml-auto shrink-0 text-metric-sm text-text-3">
+                    <span className="metric text-metric-sm text-text-3 ml-auto shrink-0">
                       {Math.round(event.report.confidence * 100)}%
                     </span>
                   </>
                 )}
 
                 {event.type === 'alert' && (
-                  <span className="truncate text-sm text-health-critical">
+                  <span className="text-health-critical truncate text-sm">
                     {event.message}
                   </span>
                 )}
@@ -94,7 +96,7 @@ export function ActivityFeed({
         </AnimatePresence>
 
         {events.length === 0 && (
-          <li className="px-2 py-6 text-sm text-text-2">
+          <li className="text-text-2 px-2 py-6 text-sm">
             Waiting for the first bump. Events arrive every few seconds.
           </li>
         )}

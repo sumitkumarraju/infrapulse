@@ -19,7 +19,7 @@ import random
 random.seed(7)
 
 OUT_IMAGES = "public/mock-photos"
-OUT_BOXES = "src/data/mock/photoBoxes.ts"
+OUT_BOXES = "shared/photoBoxes.ts"
 COUNT = 8
 WIDTH, HEIGHT = 800, 600
 

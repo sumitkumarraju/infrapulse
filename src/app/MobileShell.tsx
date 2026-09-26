@@ -13,13 +13,13 @@ const TABS = [
  */
 export function MobileShell() {
   return (
-    <div className="theme-mobile flex min-h-screen flex-col bg-base">
+    <div className="theme-mobile bg-base flex min-h-screen flex-col">
       <main className="flex-1 pb-20">
         <Outlet />
       </main>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-hairline bg-surface-1"
+        className="border-hairline bg-surface-1 fixed inset-x-0 bottom-0 z-40 flex border-t"
         aria-label="Driver app"
       >
         {TABS.map((tab) => (
@@ -29,7 +29,7 @@ export function MobileShell() {
             end={tab.end}
             className={({ isActive }) =>
               cn(
-                'flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 text-xs uppercase tracking-[0.06em]',
+                'flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 text-xs tracking-[0.06em] uppercase',
                 isActive ? 'text-accent' : 'text-text-2',
               )
             }

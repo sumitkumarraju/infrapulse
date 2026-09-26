@@ -16,7 +16,7 @@ export function ScoreBadge({
   return (
     <span
       className={cn(
-        'metric inline-flex items-center gap-1 rounded-chip border px-1.5 py-0.5 text-metric-sm',
+        'metric rounded-chip text-metric-sm inline-flex items-center gap-1 border px-1.5 py-0.5',
         className,
       )}
       style={{
@@ -71,7 +71,9 @@ export function ScoreRing({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={circumference * (1 - score / 100)}
-          style={{ transition: 'stroke-dashoffset 900ms cubic-bezier(.16,1,.3,1)' }}
+          style={{
+            transition: 'stroke-dashoffset 900ms cubic-bezier(.16,1,.3,1)',
+          }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -95,7 +97,10 @@ export function RiskBar({
   const pct = Math.round(risk * 100)
   return (
     <div
-      className={cn('h-1.5 w-full overflow-hidden rounded-full bg-surface-3', className)}
+      className={cn(
+        'bg-surface-3 h-1.5 w-full overflow-hidden rounded-full',
+        className,
+      )}
       role="img"
       aria-label={`${pct}% chance of failing within 30 days`}
     >

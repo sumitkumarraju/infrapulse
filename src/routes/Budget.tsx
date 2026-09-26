@@ -89,7 +89,10 @@ export function Budget() {
           created.length < allocation.chosen.length
             ? `${allocation.chosen.length - created.length} segments already had one open`
             : undefined,
-        action: { label: 'Open board', onClick: () => navigate('/work-orders') },
+        action: {
+          label: 'Open board',
+          onClick: () => navigate('/work-orders'),
+        },
       })
     } finally {
       setCreating(false)
@@ -98,10 +101,10 @@ export function Budget() {
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] w-full">
-      <div className="flex w-[420px] shrink-0 flex-col gap-5 overflow-y-auto border-r border-hairline bg-surface-1 p-5">
+      <div className="border-hairline bg-surface-1 flex w-[420px] shrink-0 flex-col gap-5 overflow-y-auto border-r p-5">
         <div className="flex flex-col gap-2">
           <h1 className="text-h2">Budget planner</h1>
-          <p className="text-sm text-text-2">
+          <p className="text-text-2 text-sm">
             Spend the money where it removes the most risk. Segments are ranked
             by risk removed per rupee, weighted for road class, bus routes and
             proximity to schools and hospitals.
@@ -134,14 +137,14 @@ export function Budget() {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1 rounded-card border border-hairline bg-surface-2 p-3">
+          <div className="rounded-card border-hairline bg-surface-2 flex flex-col gap-1 border p-3">
             <span className="eyebrow">Segments funded</span>
             <CountUp
               value={allocation.chosen.length}
               className="text-metric-lg text-accent"
             />
           </div>
-          <div className="flex flex-col gap-1 rounded-card border border-hairline bg-surface-2 p-3">
+          <div className="rounded-card border-hairline bg-surface-2 flex flex-col gap-1 border p-3">
             <span className="eyebrow">City risk removed</span>
             <CountUp
               value={riskRemovedPct}
@@ -152,12 +155,14 @@ export function Budget() {
           </div>
         </div>
 
-        <div className="shrink-0 h-32">
+        <div className="h-32 shrink-0">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={curve}>
               <XAxis
                 dataKey="spend"
-                tickFormatter={(v: number) => `${(v / 1_00_00_000).toFixed(0)}cr`}
+                tickFormatter={(v: number) =>
+                  `${(v / 1_00_00_000).toFixed(0)}cr`
+                }
                 tick={{ fill: 'var(--color-text-3)', fontSize: 10 }}
                 stroke="var(--color-hairline)"
               />
@@ -201,9 +206,9 @@ export function Budget() {
             {funded.slice(0, 60).map((segment, index) => (
               <li
                 key={segment.id}
-                className="flex items-center gap-3 border-b border-hairline py-2"
+                className="border-hairline flex items-center gap-3 border-b py-2"
               >
-                <span className="metric w-6 text-metric-sm text-text-3">
+                <span className="metric text-metric-sm text-text-3 w-6">
                   {String(index + 1).padStart(2, '0')}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-sm">
@@ -216,7 +221,7 @@ export function Budget() {
               </li>
             ))}
             {funded.length === 0 && (
-              <li className="py-6 text-sm text-text-2">
+              <li className="text-text-2 py-6 text-sm">
                 Nothing fits this budget yet. Drag the slider up.
               </li>
             )}

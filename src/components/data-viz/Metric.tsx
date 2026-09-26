@@ -33,9 +33,7 @@ export function CountUp({
     return () => controls.stop()
   }, [value, motionValue])
 
-  const text = format
-    ? format(display)
-    : display.toFixed(decimals)
+  const text = format ? format(display) : display.toFixed(decimals)
 
   return (
     <span className={cn('metric', className)} style={style}>

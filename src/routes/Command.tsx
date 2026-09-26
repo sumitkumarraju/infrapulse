@@ -186,8 +186,8 @@ export function Command() {
       <SegmentDrawer segment={selected} onClose={close} />
 
       {isLoading && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-void/70">
-          <span className="eyebrow animate-pulse text-accent">
+        <div className="bg-void/70 absolute inset-0 z-40 flex items-center justify-center">
+          <span className="eyebrow text-accent animate-pulse">
             Loading 1,100 road segments
           </span>
         </div>

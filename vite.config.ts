@@ -65,6 +65,7 @@ export default defineConfig({
     dedupe: ['maplibre-gl'],
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@shared': fileURLToPath(new URL('./shared', import.meta.url)),
     },
   },
   server: {
