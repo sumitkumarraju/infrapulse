@@ -204,10 +204,10 @@ process).
   covers the laptop case.
 - **Not deployed**, and no Lighthouse run, so the performance and PWA score
   targets are unmeasured.
-- **The backend has no database, no authentication and no deployment.** It runs
-  in one process and loses everything on restart. Every endpoint is open, and
-  `/api/ingest/bumps` — the one an untrusted device posts to — has no device
-  token and no rate limit.
+- **The backend has no database and no deployment.** It runs in one process and
+  loses everything on restart. Ingest now requires a device token and is rate
+  limited, but **the engineer routes are still open**: anyone who can reach the
+  server can read every score and move work orders.
 - **The wake lock is unverified on real hardware.** The trip screen requests
   `navigator.wakeLock` on start and reports honestly when it does not get it,
   but Claude's browser refuses the request outright

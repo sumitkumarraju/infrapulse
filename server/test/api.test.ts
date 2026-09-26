@@ -25,12 +25,24 @@ async function json<T>(
   return (await response.json()) as T
 }
 
-function post(body: unknown): RequestInit {
+function post(body: unknown, token?: string): RequestInit {
   return {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify(body),
   }
+}
+
+/** Registers a device and returns its bearer token. */
+async function register(app: Hono): Promise<string> {
+  const response = await app.request('/api/devices/register', {
+    method: 'POST',
+  })
+  const body = (await response.json()) as { token: string }
+  return body.token
 }
 
 describe('health and errors', () => {
@@ -116,6 +128,7 @@ describe('road network', () => {
 describe('ingest', () => {
   it('matches impacts to the road they happened on and lowers the score', async () => {
     const { app } = build()
+    const token = await register(app)
     const segments = await json<Segment[]>(app, '/api/segments')
     const target = segments[300]
 
@@ -125,17 +138,19 @@ describe('ingest', () => {
 
     const response = await app.request(
       '/api/ingest/bumps',
-      post({
-        deviceId: 'device-under-test',
-        tripId: 'trip-1',
-        bumps: Array.from({ length: 10 }, () => ({
-          at: new Date().toISOString(),
-          lat: target.center[1],
-          lon: target.center[0],
-          magnitude: 12.5,
-          speedMs: 11,
-        })),
-      }),
+      post(
+        {
+          tripId: 'trip-1',
+          bumps: Array.from({ length: 10 }, () => ({
+            at: new Date().toISOString(),
+            lat: target.center[1],
+            lon: target.center[0],
+            magnitude: 12.5,
+            speedMs: 11,
+          })),
+        },
+        token,
+      ),
     )
 
     expect(response.status).toBe(202)
@@ -159,24 +174,27 @@ describe('ingest', () => {
     // history, so every read subtracted the same impacts again and the score
     // sank on each request.
     const { app } = build()
+    const token = await register(app)
     const segments = await json<Segment[]>(app, '/api/segments')
     const target = segments[120]
 
     await app.request(
       '/api/ingest/bumps',
-      post({
-        deviceId: 'device-under-test',
-        tripId: 'trip-1',
-        bumps: [
-          {
-            at: new Date().toISOString(),
-            lat: target.center[1],
-            lon: target.center[0],
-            magnitude: 11,
-            speedMs: 9,
-          },
-        ],
-      }),
+      post(
+        {
+          tripId: 'trip-1',
+          bumps: [
+            {
+              at: new Date().toISOString(),
+              lat: target.center[1],
+              lon: target.center[0],
+              magnitude: 11,
+              speedMs: 9,
+            },
+          ],
+        },
+        token,
+      ),
     )
 
     const read = async () =>
@@ -191,23 +209,26 @@ describe('ingest', () => {
 
   it('keeps impacts that fall outside the network instead of dropping them', async () => {
     const { app } = build()
+    const token = await register(app)
     const result = await json<{ matched: number; unmatched: number }>(
       app,
       '/api/ingest/bumps',
-      post({
-        deviceId: 'device-under-test',
-        tripId: 'trip-2',
-        bumps: [
-          {
-            at: new Date().toISOString(),
-            // The Arabian Sea.
-            lat: 18.5,
-            lon: 70.2,
-            magnitude: 9,
-            speedMs: 11,
-          },
-        ],
-      }),
+      post(
+        {
+          tripId: 'trip-2',
+          bumps: [
+            {
+              at: new Date().toISOString(),
+              // The Arabian Sea.
+              lat: 18.5,
+              lon: 70.2,
+              magnitude: 9,
+              speedMs: 11,
+            },
+          ],
+        },
+        token,
+      ),
     )
 
     expect(result).toMatchObject({ matched: 0, unmatched: 1 })
@@ -215,6 +236,7 @@ describe('ingest', () => {
 
   it('refuses impossible readings', async () => {
     const { app } = build()
+    const token = await register(app)
 
     for (const bad of [
       { lat: 200, lon: 76.5, magnitude: 9, speedMs: 10 },
@@ -223,11 +245,13 @@ describe('ingest', () => {
     ]) {
       const response = await app.request(
         '/api/ingest/bumps',
-        post({
-          deviceId: 'device-under-test',
-          tripId: 'trip-3',
-          bumps: [{ at: new Date().toISOString(), ...bad }],
-        }),
+        post(
+          {
+            tripId: 'trip-3',
+            bumps: [{ at: new Date().toISOString(), ...bad }],
+          },
+          token,
+        ),
       )
       expect(response.status).toBe(400)
       expect(await response.json()).toMatchObject({
@@ -238,47 +262,189 @@ describe('ingest', () => {
 
   it('caps how much one request can carry', async () => {
     const { app } = build()
+    const token = await register(app)
     const response = await app.request(
       '/api/ingest/bumps',
-      post({
-        deviceId: 'device-under-test',
-        tripId: 'trip-4',
-        bumps: Array.from({ length: 501 }, () => ({
-          at: new Date().toISOString(),
-          lat: 30.768,
-          lon: 76.575,
-          magnitude: 9,
-          speedMs: 10,
-        })),
-      }),
+      post(
+        {
+          tripId: 'trip-4',
+          bumps: Array.from({ length: 501 }, () => ({
+            at: new Date().toISOString(),
+            lat: 30.768,
+            lon: 76.575,
+            magnitude: 9,
+            speedMs: 10,
+          })),
+        },
+        token,
+      ),
     )
     expect(response.status).toBe(400)
   })
 
   it('tells connected dashboards about every matched impact', async () => {
     const { app, service } = build()
+    const token = await register(app)
     const seen: string[] = []
     service.subscribe((event) => seen.push(event.type))
 
     const segments = await json<Segment[]>(app, '/api/segments')
     await app.request(
       '/api/ingest/bumps',
+      post(
+        {
+          tripId: 'trip-5',
+          bumps: [
+            {
+              at: new Date().toISOString(),
+              lat: segments[10].center[1],
+              lon: segments[10].center[0],
+              magnitude: 10,
+              speedMs: 12,
+            },
+          ],
+        },
+        token,
+      ),
+    )
+
+    expect(seen).toContain('bump')
+  })
+})
+
+describe('ingest is not open to the world', () => {
+  it('refuses an ingest with no device token', async () => {
+    const { app } = build()
+    const response = await app.request(
+      '/api/ingest/bumps',
       post({
-        deviceId: 'device-under-test',
-        tripId: 'trip-5',
+        tripId: 'trip-x',
         bumps: [
           {
             at: new Date().toISOString(),
-            lat: segments[10].center[1],
-            lon: segments[10].center[0],
-            magnitude: 10,
-            speedMs: 12,
+            lat: 30.768,
+            lon: 76.575,
+            magnitude: 9,
+            speedMs: 10,
           },
         ],
       }),
     )
 
-    expect(seen).toContain('bump')
+    expect(response.status).toBe(401)
+    expect(await response.json()).toMatchObject({
+      error: { code: 'device_token_required' },
+    })
+  })
+
+  it('refuses a forged or tampered token', async () => {
+    const { app } = build()
+    const real = await register(app)
+
+    // Same device id, signature altered by one character.
+    const parts = real.split('.')
+    const tampered = [
+      parts[0],
+      parts[1],
+      parts[2].slice(0, -1) + (parts[2].endsWith('A') ? 'B' : 'A'),
+    ].join('.')
+
+    for (const token of [tampered, 'v1.whoever.i-say-i-am', 'nonsense']) {
+      const response = await app.request(
+        '/api/ingest/bumps',
+        post(
+          {
+            tripId: 'trip-x',
+            bumps: [
+              {
+                at: new Date().toISOString(),
+                lat: 30.768,
+                lon: 76.575,
+                magnitude: 9,
+                speedMs: 10,
+              },
+            ],
+          },
+          token,
+        ),
+      )
+      expect(response.status).toBe(401)
+    }
+  })
+
+  it('attributes readings to the token, not to anything in the body', async () => {
+    // The body used to carry a deviceId, which meant a caller could claim to be
+    // any device — or a thousand of them — and walk around the rate limit.
+    const { app } = build()
+    const token = await register(app)
+    const segments = await json<Segment[]>(app, '/api/segments')
+
+    const response = await app.request(
+      '/api/ingest/bumps',
+      post(
+        {
+          deviceId: 'somebody-elses-device',
+          tripId: 'trip-x',
+          bumps: [
+            {
+              at: new Date().toISOString(),
+              lat: segments[5].center[1],
+              lon: segments[5].center[0],
+              magnitude: 9,
+              speedMs: 10,
+            },
+          ],
+        },
+        token,
+      ),
+    )
+
+    // The extra field is ignored rather than honoured.
+    expect(response.status).toBe(202)
+  })
+
+  it('throttles a device submitting far more than a drive could produce', async () => {
+    const { app } = build()
+    const token = await register(app)
+    const segments = await json<Segment[]>(app, '/api/segments')
+
+    const batch = (count: number) =>
+      post(
+        {
+          tripId: 'stuck-sensor',
+          bumps: Array.from({ length: count }, () => ({
+            at: new Date().toISOString(),
+            lat: segments[9].center[1],
+            lon: segments[9].center[0],
+            magnitude: 14,
+            speedMs: 12,
+          })),
+        },
+        token,
+      )
+
+    let limited = false
+    // 8 x 500 is 4,000 readings in a minute: well past a real trip.
+    for (let i = 0; i < 8; i++) {
+      const response = await app.request('/api/ingest/bumps', batch(500))
+      if (response.status === 429) {
+        limited = true
+        expect(response.headers.get('Retry-After')).toBeTruthy()
+        expect(await response.json()).toMatchObject({
+          error: { code: 'rate_limited' },
+        })
+        break
+      }
+    }
+
+    expect(limited).toBe(true)
+  })
+
+  it('gives each registration its own budget', async () => {
+    const { app } = build()
+    const a = await register(app)
+    const b = await register(app)
+    expect(a).not.toBe(b)
   })
 })
 

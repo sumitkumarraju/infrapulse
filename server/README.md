@@ -59,6 +59,37 @@ calls it.
 Errors are always `{ error: { code, message } }`, and `message` is written to be
 shown to a person. Validation failures add a `fields` array.
 
+### Who may write to it
+
+`/api/ingest/bumps` is the only endpoint an untrusted device posts to, and what
+it writes moves road scores and therefore where money gets spent. It requires a
+device token:
+
+```
+POST /api/devices/register        -> { deviceId, token }
+POST /api/ingest/bumps            Authorization: Bearer <token>
+```
+
+The identifier is read from the token's signature, never from the body. Before
+this it came from a body field, which meant any caller could claim to be any
+device — or a thousand of them — and drive a road's score to zero from a laptop.
+
+This is not authentication of a person and is not meant to be. There are no
+accounts, and a driver should not need one to report a pothole; the token
+establishes only that two requests came from the same install, which is what
+makes a rate limit mean anything.
+
+Two limits apply per device per minute: **60 requests** and **3,000 readings**.
+Either alone is easy to walk around, with one huge request or very many small
+ones. A ten-minute trip hitting a pothole every second is about 600 readings, so
+an ordinary drive is nowhere near — the limits exist for a sensor stuck in a
+loop, which is a likelier failure than an attacker. Exceeding them returns 429
+with `Retry-After`; every response carries `X-RateLimit-*`.
+
+Tokens are signed statelessly (HMAC, no session table) because there is no
+database. The cost is that a single token cannot be revoked without rotating the
+secret for everyone. When the devices table exists, that is the thing to fix.
+
 ### Rules the server enforces, not the client
 
 - **Work order transitions.** Open cannot jump to verified; the legal moves are
@@ -111,18 +142,19 @@ Two things to watch when you do:
 npm test
 ```
 
-20 tests over the real app — a fresh in-memory repository per suite, exercised
+25 tests over the real app — a fresh in-memory repository per suite, exercised
 through `app.request()` rather than a live socket. They cover the ingest and
 scoring path, the idempotency regression above, status-transition enforcement,
-validation limits, and that impacts off the mapped network are kept rather than
-silently dropped.
+validation limits, that impacts off the mapped network are kept rather than
+silently dropped, and that ingest rejects a missing, forged or tampered token
+and throttles a device submitting far more than a drive could produce.
 
 ## Not done
 
-- **No authentication.** Every endpoint is open. Before this is exposed to
-  anything, the engineer routes need a session and `/api/ingest/bumps` needs at
-  least a device token and a rate limit — it is the one endpoint an untrusted
-  device posts to.
+- **The engineer routes have no authentication.** Ingest is gated by a device
+  token and rate limited, but anyone who can reach the server can still read
+  every road score and move work orders around. Those routes need a real
+  session before this is exposed to anything.
 - **No persistence**, so all data is lost on restart.
 - **No deployment.** Nothing here has run anywhere but localhost.
 - **Single process.** `EventBus` fans out in memory; a second instance would not

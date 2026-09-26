@@ -22,7 +22,20 @@ const app = createApp({
   service,
   corsOrigins: env.corsOrigins,
   enableDemoRoutes: env.enableDemoRoutes,
+  deviceTokenSecret: env.deviceTokenSecret,
 })
+
+if (
+  isProduction &&
+  env.deviceTokenSecret.startsWith('infrapulse-development')
+) {
+  // Shipping the default would let anyone mint a device token, which is the
+  // one thing the token exists to prevent. Refuse rather than pretend.
+  console.error(
+    'FATAL: DEVICE_TOKEN_SECRET is unset. Refusing to start in production with the development secret.',
+  )
+  process.exit(1)
+}
 
 if (isProduction && !env.databaseUrl) {
   // Losing every road score on a restart is fine for a demo and unacceptable
@@ -37,4 +50,11 @@ serve({ fetch: app.fetch, port: env.port }, (info) => {
   console.log(`  storage:  in-memory (no database configured)`)
   console.log(`  cors:     ${env.corsOrigins.join(', ') || 'same-origin only'}`)
   console.log(`  demo:     ${env.enableDemoRoutes ? 'enabled' : 'disabled'}`)
+  console.log(
+    `  ingest:   device token required${
+      env.deviceTokenSecret.startsWith('infrapulse-development')
+        ? ' (DEVELOPMENT SECRET)'
+        : ''
+    }`,
+  )
 })

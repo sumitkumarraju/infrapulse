@@ -25,9 +25,8 @@ export const bumpSchema = z.object({
 })
 
 export const ingestSchema = z.object({
-  // An anonymous per-install identifier. Never a name, a phone number or an
-  // account: the system only needs to tell two devices apart.
-  deviceId: z.string().min(8).max(128),
+  // No deviceId here on purpose: it comes from the signed token, not the body.
+  // A body field would let any caller claim to be any device.
   tripId: z.string().min(1).max(128),
   bumps: z.array(bumpSchema).min(1).max(MAX_BUMPS_PER_REQUEST),
 })

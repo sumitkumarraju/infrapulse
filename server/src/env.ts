@@ -21,6 +21,15 @@ export const env = {
   enableDemoRoutes: process.env.ENABLE_DEMO_ROUTES === 'true',
 
   /**
+   * Signs device tokens for the ingest endpoint. The development default is
+   * fine locally and must not survive to a deployment: anyone who knows it can
+   * mint tokens, which is the whole thing the token prevents. index.ts refuses
+   * to start in production without a real one.
+   */
+  deviceTokenSecret:
+    process.env.DEVICE_TOKEN_SECRET ?? 'infrapulse-development-secret',
+
+  /**
    * Reserved for the Postgres implementation. Deliberately unused today: the
    * server runs entirely on InMemoryRepository, and nothing here opens a
    * connection. See server/db/schema.sql and README.md.

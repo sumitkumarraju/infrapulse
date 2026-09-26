@@ -6,6 +6,8 @@ import { ZodError } from 'zod'
 import type { LiveEvent } from '@shared/contract'
 import type { InfraPulseService } from './domain/service.js'
 import { ApiError } from './http/errors.js'
+import { mintDeviceToken, requireDevice } from './http/auth.js'
+import { rateLimit } from './http/rateLimit.js'
 import {
   createWorkOrdersSchema,
   ingestSchema,
@@ -21,8 +23,21 @@ export interface AppOptions {
   corsOrigins?: string[]
   /** Demo endpoints are convenient locally and dangerous in production. */
   enableDemoRoutes?: boolean
+  /** HMAC secret for device tokens on the ingest endpoint. */
+  deviceTokenSecret?: string
   quiet?: boolean
 }
+
+/* Ingest budgets, per device per minute.
+ *
+ * A trip that hits a pothole every second for ten minutes is ~600 readings, and
+ * the client batches at 10. These allow several times that, so an ordinary
+ * drive never comes close, while a sensor stuck in a loop is stopped before it
+ * can bury a road under thousands of phantom impacts. */
+const INGEST_REQUESTS_PER_MINUTE = 60
+const INGEST_READINGS_PER_MINUTE = 3000
+/** Registration is once per install; this only stops a loop hammering it. */
+const REGISTRATIONS_PER_HOUR = 20
 
 /**
  * Every route the client needs, mounted under /api.
@@ -35,6 +50,7 @@ export function createApp({
   service,
   corsOrigins = [],
   enableDemoRoutes = false,
+  deviceTokenSecret = 'infrapulse-development-secret',
   quiet = false,
 }: AppOptions) {
   const app = new Hono()
@@ -123,17 +139,50 @@ export function createApp({
     return c.json(await service.getForecast(id))
   })
 
-  /* --- Ingest ------------------------------------------------------------- */
+  /* --- Devices and ingest --------------------------------------------------- */
 
-  app.post('/api/ingest/bumps', async (c) => {
-    const body = ingestSchema.parse(await c.req.json())
-    const result = await service.ingestBumps(
-      body.deviceId,
-      body.tripId,
-      body.bumps,
-    )
-    return c.json(result, 202)
-  })
+  // One call per install. The server issues the identifier so a caller cannot
+  // choose one, and the token is what every later ingest is counted against.
+  app.post(
+    '/api/devices/register',
+    rateLimit({ limit: REGISTRATIONS_PER_HOUR, windowMs: 60 * 60_000 }),
+    (c) => c.json(mintDeviceToken(deviceTokenSecret), 201),
+  )
+
+  app.post(
+    '/api/ingest/bumps',
+    requireDevice(deviceTokenSecret),
+    // Two limits: how often a device may call, and how much it may submit.
+    // Either alone is easy to walk around — one big request, or many small ones.
+    rateLimit({
+      limit: INGEST_REQUESTS_PER_MINUTE,
+      windowMs: 60_000,
+      key: (c) => `req:${c.get('device').deviceId}`,
+    }),
+    rateLimit({
+      limit: INGEST_READINGS_PER_MINUTE,
+      windowMs: 60_000,
+      key: (c) => `readings:${c.get('device').deviceId}`,
+      cost: async (c) => {
+        // Reads the body to weigh the request, then puts it back: Hono caches
+        // the parsed body, so the handler does not pay for a second parse.
+        const body = (await c.req.json().catch(() => null)) as {
+          bumps?: unknown[]
+        } | null
+        return Math.max(1, body?.bumps?.length ?? 1)
+      },
+    }),
+    async (c) => {
+      const body = ingestSchema.parse(await c.req.json())
+      // The device identity comes from the signature, never from the body.
+      const result = await service.ingestBumps(
+        c.get('device').deviceId,
+        body.tripId,
+        body.bumps,
+      )
+      return c.json(result, 202)
+    },
+  )
 
   /* --- Photo reports ------------------------------------------------------ */
 
