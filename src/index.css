@@ -1,0 +1,170 @@
+@import 'tailwindcss';
+@import './design/tokens.css';
+
+/* ---------------------------------------------------------------------- */
+/* Base                                                                    */
+/* ---------------------------------------------------------------------- */
+
+@layer base {
+  * {
+    border-color: var(--color-hairline);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-base);
+    color: var(--color-text-1);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* UI_DESIGN 7: a visible focus ring on everything interactive. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-chip);
+  }
+
+  /* Every number a person compares is monospace with tabular figures. */
+  .font-mono,
+  code,
+  kbd {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  ::selection {
+    background: var(--color-accent-wash);
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Utilities                                                               */
+/* ---------------------------------------------------------------------- */
+
+@utility metric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* UI_DESIGN 5.2: the label-above-value pairing used across the app. */
+@utility eyebrow {
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+  font-weight: 550;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-2);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Glass — UI_DESIGN 3.1. Four ingredients, with readability first.        */
+/* ---------------------------------------------------------------------- */
+
+@layer components {
+  .glass {
+    position: relative;
+    background: rgba(15, 23, 46, 0.55);
+    /* No hand-written -webkit- prefix here: Lightning CSS adds the prefixes
+       the configured targets need, and writing both made it keep only the
+       prefixed one, so Chrome computed backdrop-filter as `none`. */
+    backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid var(--color-hairline-strong);
+    border-radius: var(--radius-glass);
+    box-shadow: var(--shadow-glass);
+  }
+
+  /* Scrim behind content so body text stays legible over a busy map. */
+  .glass-scrim::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--scrim);
+    pointer-events: none;
+  }
+
+  .glass > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Fallback: no backdrop-filter support means solid, not transparent. */
+  @supports not (backdrop-filter: blur(1px)) {
+    .glass {
+      background: color-mix(in srgb, var(--color-surface-1) 96%, transparent);
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .glass {
+      background: var(--color-surface-1);
+      backdrop-filter: none;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Reduced motion — UI_DESIGN 6: everything collapses except short fades.  */
+/* ---------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 120ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Driver app — light theme (UI_DESIGN 1.5).                               */
+/* The phone is used in a windscreen mount in sunlight, so the same token   */
+/* names are redefined for this subtree rather than a second set of         */
+/* utilities being introduced.                                             */
+/* ---------------------------------------------------------------------- */
+
+@layer components {
+  .theme-mobile {
+    --color-base: #f6f8fc;
+    --color-surface-1: #ffffff;
+    --color-surface-2: #eef2f9;
+    --color-surface-3: #e2e8f4;
+    --color-hairline: rgba(10, 16, 34, 0.1);
+    --color-hairline-strong: rgba(10, 16, 34, 0.18);
+    --color-text-1: #0a1022;
+    --color-text-2: #4a5876;
+    --color-text-3: #7b89a5;
+    --color-accent: #0e7490;
+    --color-accent-bright: #0891b2;
+    --color-accent-wash: rgba(14, 116, 144, 0.1);
+    --color-health-good: #059669;
+    --color-health-watch: #b45309;
+    --color-health-critical: #be123c;
+    color-scheme: light;
+    background: var(--color-base);
+    color: var(--color-text-1);
+  }
+
+  .theme-mobile .glass {
+    background: rgba(255, 255, 255, 0.78);
+    box-shadow:
+      0 12px 40px rgba(10, 16, 34, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+
+  .theme-mobile .glass-scrim::before {
+    background: linear-gradient(
+      rgba(255, 255, 255, 0.25),
+      rgba(255, 255, 255, 0.5)
+    );
+  }
+}

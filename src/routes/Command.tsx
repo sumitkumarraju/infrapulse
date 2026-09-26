@@ -1,0 +1,168 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router'
+import { toast } from 'sonner'
+import { CityMap, type Pulse } from '@/components/map/CityMap'
+import { Button } from '@/components/ui/Button'
+import { useLiveEvents, useSegmentsWithStatus } from '@/data/hooks'
+import { ActivityFeed } from '@/features/command/ActivityFeed'
+import { KpiBar } from '@/features/command/KpiBar'
+import { PriorityQueue } from '@/features/command/PriorityQueue'
+import { SegmentDrawer } from '@/features/command/SegmentDrawer'
+
+const MAX_PULSES = 3
+
+export function Command() {
+  const { data: segments, byId, isLoading, error } = useSegmentsWithStatus()
+  const { events, latest } = useLiveEvents()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [highlightId, setHighlightId] = useState<number | null>(null)
+  const [pulses, setPulses] = useState<Pulse[]>([])
+  const [showHexagons, setShowHexagons] = useState(false)
+  const [flyTo, setFlyTo] = useState<{
+    center: [number, number]
+    token: number
+  } | null>(null)
+  const flyToken = useRef(0)
+
+  // The drawer is driven by the URL, so ?segment=214 survives a refresh.
+  const selectedId = searchParams.get('segment')
+    ? Number(searchParams.get('segment'))
+    : null
+  const selected = selectedId !== null ? (byId.get(selectedId) ?? null) : null
+
+  const select = useCallback(
+    (id: number) => {
+      setSearchParams((params) => {
+        const next = new URLSearchParams(params)
+        next.set('segment', String(id))
+        return next
+      })
+    },
+    [setSearchParams],
+  )
+
+  const close = useCallback(() => {
+    setSearchParams((params) => {
+      const next = new URLSearchParams(params)
+      next.delete('segment')
+      return next
+    })
+  }, [setSearchParams])
+
+  // Fly the camera whenever the selection changes, including on a deep link.
+  useEffect(() => {
+    if (!selected) return
+    flyToken.current += 1
+    setFlyTo({ center: selected.center, token: flyToken.current })
+  }, [selected])
+
+  // Live events become pulse rings on the map and, rarely, a toast.
+  useEffect(() => {
+    if (!latest) return
+
+    if (latest.type === 'bump') {
+      setPulses((previous) =>
+        [
+          {
+            key: `${latest.segmentId}-${latest.at}`,
+            position: latest.position,
+            start: performance.now(),
+            real: latest.real,
+          },
+          ...previous,
+        ].slice(0, MAX_PULSES),
+      )
+    }
+
+    if (latest.type === 'alert') {
+      const segment = byId.get(latest.segmentId)
+      toast(latest.message, {
+        description: segment
+          ? `Score ${Math.round(segment.status.score)} · ${Math.round(segment.status.risk30 * 100)}% risk in 30 days`
+          : undefined,
+        duration: 8000,
+        action: {
+          label: 'Open',
+          onClick: () => select(latest.segmentId),
+        },
+      })
+    }
+  }, [latest, byId, select])
+
+  const photoPins = events
+    .filter((e) => e.type === 'photo')
+    .slice(0, 12)
+    .map((e) => ({
+      id: e.report.id,
+      position: (byId.get(e.segmentId)?.center ?? [0, 0]) as [number, number],
+    }))
+
+  if (error) {
+    return (
+      <div className="mx-auto flex max-w-lg flex-col gap-3 px-6 py-24">
+        <h1 className="text-h2">The road network did not load</h1>
+        <p className="text-body text-text-2">
+          {String((error as Error).message ?? error)}
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative h-[calc(100vh-3.5rem)] w-full overflow-hidden">
+      <CityMap
+        segments={segments}
+        highlightId={highlightId}
+        selectedId={selectedId}
+        pulses={pulses}
+        photoPins={photoPins}
+        showHexagons={showHexagons}
+        flyTo={flyTo}
+        onSelect={select}
+        onHoverSegment={setHighlightId}
+      />
+
+      {/* Overlays sit in a non-interactive grid so the map keeps the clicks
+          everywhere they are not. */}
+      <div className="pointer-events-none absolute inset-0 flex flex-col gap-4 p-4">
+        <div className="pointer-events-auto">
+          <KpiBar />
+        </div>
+
+        <div className="flex min-h-0 flex-1 items-start gap-4">
+          <div className="pointer-events-auto flex h-full min-h-0 flex-col gap-4">
+            <div className="min-h-0 flex-1">
+              <PriorityQueue
+                segments={segments}
+                selectedId={selectedId}
+                onSelect={select}
+                onHover={setHighlightId}
+              />
+            </div>
+            <ActivityFeed events={events} onSelect={select} />
+          </div>
+
+          <div className="pointer-events-auto ml-auto flex flex-col gap-2">
+            <Button
+              variant={showHexagons ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setShowHexagons((v) => !v)}
+            >
+              {showHexagons ? 'Health view' : 'Density view'}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <SegmentDrawer segment={selected} onClose={close} />
+
+      {isLoading && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-void/70">
+          <span className="eyebrow animate-pulse text-accent">
+            Loading 1,100 road segments
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}

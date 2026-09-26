@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <defs>
+    <filter id="grain8"><feTurbulence type="fractalNoise" baseFrequency="0.76" numOctaves="4" seed="43"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope="0.4"/></feComponentTransfer></filter>
+    <radialGradient id="hole8" cx="50%" cy="45%"><stop offset="0%" stop-color="#15171a"/><stop offset="60%" stop-color="#26292e"/><stop offset="100%" stop-color="#3b4046"/></radialGradient>
+    <linearGradient id="light8" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.10"/><stop offset="100%" stop-color="#000000" stop-opacity="0.28"/></linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="#4a4e54"/>
+  <rect width="800" height="600" filter="url(#grain8)" opacity="0.55"/>
+  
+  <g><path d="M 460 275 L 393 238 L 292 296 L 195 242 L 266 286 L 213 288 " fill="none" stroke="#2a2d31" stroke-opacity="0.55" stroke-width="2" stroke-linecap="round"/><path d="M 617 520 L 724 458 L 784 461 L 723 498 L 832 532 " fill="none" stroke="#2a2d31" stroke-opacity="0.55" stroke-width="3" stroke-linecap="round"/><path d="M 25 162 L 30 246 L 25 259 " fill="none" stroke="#2a2d31" stroke-opacity="0.55" stroke-width="3" stroke-linecap="round"/><path d="M 744 144 L 712 150 L 672 90 L 767 84 L 647 77 L 719 73 " fill="none" stroke="#2a2d31" stroke-opacity="0.55" stroke-width="3" stroke-linecap="round"/><path d="M 122 200 L 232 184 L 176 189 " fill="none" stroke="#2a2d31" stroke-opacity="0.55" stroke-width="2" stroke-linecap="round"/><path d="M 402 399 L 374 418 L 447 398 " fill="none" stroke="#2a2d31" stroke-opacity="0.55" stroke-width="2" stroke-linecap="round"/><path d="M 287 104 L 380 183 L 333 255 " fill="none" stroke="#2a2d31" stroke-opacity="0.55" stroke-width="2" stroke-linecap="round"/></g>
+  <path d="M 430 367 L 421 388 L 415 416 L 375 425 L 336 418 L 308 404 L 277 391 L 260 367 L 293 348 L 296 320 L 339 326 L 373 313 L 417 316 L 434 342 Z" fill="url(#hole8)"/>
+  <path d="M 430 367 L 421 388 L 415 416 L 375 425 L 336 418 L 308 404 L 277 391 L 260 367 L 293 348 L 296 320 L 339 326 L 373 313 L 417 316 L 434 342 Z" fill="none" stroke="#0d0f11" stroke-opacity="0.75" stroke-width="3"/>
+  <circle cx="330" cy="368" r="6" fill="#33363a" opacity="0.6"/><circle cx="355" cy="305" r="4" fill="#33363a" opacity="0.6"/><circle cx="413" cy="264" r="5" fill="#33363a" opacity="0.6"/><circle cx="477" cy="397" r="3" fill="#33363a" opacity="0.6"/><circle cx="235" cy="269" r="5" fill="#33363a" opacity="0.6"/><circle cx="424" cy="414" r="3" fill="#33363a" opacity="0.6"/><circle cx="340" cy="381" r="2" fill="#33363a" opacity="0.6"/><circle cx="475" cy="289" r="3" fill="#33363a" opacity="0.6"/><circle cx="435" cy="363" r="4" fill="#33363a" opacity="0.6"/>
+  <rect width="800" height="600" fill="url(#light8)"/>
+</svg>

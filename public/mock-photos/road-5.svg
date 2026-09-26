@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <defs>
+    <filter id="grain5"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" seed="59"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope="0.22"/></feComponentTransfer></filter>
+    <radialGradient id="hole5" cx="50%" cy="45%"><stop offset="0%" stop-color="#15171a"/><stop offset="60%" stop-color="#26292e"/><stop offset="100%" stop-color="#3b4046"/></radialGradient>
+    <linearGradient id="light5" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.10"/><stop offset="100%" stop-color="#000000" stop-opacity="0.28"/></linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="#4a4e54"/>
+  <rect width="800" height="600" filter="url(#grain5)" opacity="0.55"/>
+  
+  <g><path d="M 687 246 L 585 210 L 636 197 L 716 138 L 825 87 L 945 161 " fill="none" stroke="#2a2d31" stroke-opacity="0.55" stroke-width="4" stroke-linecap="round"/><path d="M 374 146 L 480 91 L 479 57 L 550 -9 L 531 25 " fill="none" stroke="#2a2d31" stroke-opacity="0.55" stroke-width="2" stroke-linecap="round"/><path d="M 683 229 L 743 249 L 754 262 L 720 279 " fill="none" stroke="#2a2d31" stroke-opacity="0.55" stroke-width="2" stroke-linecap="round"/></g>
+  <path d="M 534 363 L 497 399 L 467 433 L 401 423 L 359 422 L 294 432 L 272 396 L 285 363 L 240 320 L 296 296 L 347 272 L 401 303 L 473 288 L 465 337 Z" fill="url(#hole5)"/>
+  <path d="M 534 363 L 497 399 L 467 433 L 401 423 L 359 422 L 294 432 L 272 396 L 285 363 L 240 320 L 296 296 L 347 272 L 401 303 L 473 288 L 465 337 Z" fill="none" stroke="#0d0f11" stroke-opacity="0.75" stroke-width="3"/>
+  <circle cx="383" cy="276" r="4" fill="#33363a" opacity="0.6"/><circle cx="229" cy="339" r="6" fill="#33363a" opacity="0.6"/><circle cx="454" cy="365" r="2" fill="#33363a" opacity="0.6"/><circle cx="416" cy="337" r="6" fill="#33363a" opacity="0.6"/><circle cx="539" cy="328" r="6" fill="#33363a" opacity="0.6"/><circle cx="252" cy="281" r="3" fill="#33363a" opacity="0.6"/><circle cx="273" cy="274" r="4" fill="#33363a" opacity="0.6"/><circle cx="359" cy="263" r="3" fill="#33363a" opacity="0.6"/><circle cx="358" cy="446" r="3" fill="#33363a" opacity="0.6"/><circle cx="436" cy="470" r="4" fill="#33363a" opacity="0.6"/><circle cx="427" cy="291" r="6" fill="#33363a" opacity="0.6"/>
+  <rect width="800" height="600" fill="url(#light5)"/>
+</svg>

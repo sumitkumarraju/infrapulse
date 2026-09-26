@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <defs>
+    <filter id="grain7"><feTurbulence type="fractalNoise" baseFrequency="0.71" numOctaves="4" seed="11"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope="0.39"/></feComponentTransfer></filter>
+    <radialGradient id="hole7" cx="50%" cy="45%"><stop offset="0%" stop-color="#15171a"/><stop offset="60%" stop-color="#26292e"/><stop offset="100%" stop-color="#3b4046"/></radialGradient>
+    <linearGradient id="light7" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.10"/><stop offset="100%" stop-color="#000000" stop-opacity="0.28"/></linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="#4a4e54"/>
+  <rect width="800" height="600" filter="url(#grain7)" opacity="0.55"/>
+  
+  <g><path d="M 23 306 L 64 275 L -35 334 L -20 283 L 28 345 " fill="none" stroke="#2a2d31" stroke-opacity="0.55" stroke-width="3" stroke-linecap="round"/><path d="M 782 333 L 700 315 L 765 383 L 809 330 L 700 371 L 740 390 " fill="none" stroke="#2a2d31" stroke-opacity="0.55" stroke-width="4" stroke-linecap="round"/><path d="M 717 517 L 829 561 L 901 600 L 926 514 " fill="none" stroke="#2a2d31" stroke-opacity="0.55" stroke-width="4" stroke-linecap="round"/><path d="M 598 235 L 485 155 L 399 228 " fill="none" stroke="#2a2d31" stroke-opacity="0.55" stroke-width="3" stroke-linecap="round"/><path d="M 107 385 L 129 307 L 169 221 L 209 267 L 263 239 L 268 216 " fill="none" stroke="#2a2d31" stroke-opacity="0.55" stroke-width="2" stroke-linecap="round"/><path d="M 467 71 L 515 115 L 411 146 " fill="none" stroke="#2a2d31" stroke-opacity="0.55" stroke-width="3" stroke-linecap="round"/></g>
+  <path d="M 403 352 L 374 370 L 366 392 L 334 402 L 293 416 L 277 384 L 254 371 L 235 352 L 234 327 L 271 316 L 298 302 L 337 294 L 381 300 L 391 329 Z" fill="url(#hole7)"/>
+  <path d="M 403 352 L 374 370 L 366 392 L 334 402 L 293 416 L 277 384 L 254 371 L 235 352 L 234 327 L 271 316 L 298 302 L 337 294 L 381 300 L 391 329 Z" fill="none" stroke="#0d0f11" stroke-opacity="0.75" stroke-width="3"/>
+  <circle cx="291" cy="302" r="3" fill="#33363a" opacity="0.6"/><circle cx="274" cy="431" r="5" fill="#33363a" opacity="0.6"/><circle cx="408" cy="458" r="5" fill="#33363a" opacity="0.6"/><circle cx="195" cy="364" r="4" fill="#33363a" opacity="0.6"/><circle cx="179" cy="399" r="3" fill="#33363a" opacity="0.6"/><circle cx="195" cy="395" r="3" fill="#33363a" opacity="0.6"/><circle cx="325" cy="307" r="4" fill="#33363a" opacity="0.6"/>
+  <rect width="800" height="600" fill="url(#light7)"/>
+</svg>
