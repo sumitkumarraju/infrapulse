@@ -84,6 +84,9 @@ export class PostgresRepository implements Repository {
         : { rejectUnauthorized: false },
       max: 10,
       idleTimeoutMillis: 30_000,
+      // Supabase keeps PostGIS in an `extensions` schema rather than public,
+      // so without this the geometry functions are simply not visible.
+      options: '-c search_path=public,extensions',
     })
   }
 

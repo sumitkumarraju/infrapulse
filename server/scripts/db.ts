@@ -43,14 +43,56 @@ function pool(): pg.Pool {
   return new pg.Pool({
     connectionString: url,
     ssl: url.includes('localhost') ? undefined : { rejectUnauthorized: false },
+    options: '-c search_path=public,extensions',
   })
 }
 
 /* --- migrate ------------------------------------------------------------- */
 
+/*
+ * PostGIS, wherever this provider likes to keep it.
+ *
+ * Supabase installs extensions into an `extensions` schema rather than
+ * `public`, so a bare `CREATE EXTENSION postgis` may land the geometry type
+ * somewhere the schema cannot see, and every `geometry(LineString, 4326)`
+ * column fails with "type does not exist". Asking for that schema explicitly
+ * works there, and falling back covers Neon, RDS and a local instance, which
+ * put it in public.
+ */
+async function enablePostgis(db: pg.Pool) {
+  try {
+    await db.query('CREATE SCHEMA IF NOT EXISTS extensions')
+    await db.query(
+      'CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA extensions',
+    )
+    console.log('PostGIS enabled in the extensions schema.')
+  } catch {
+    await db.query('CREATE EXTENSION IF NOT EXISTS postgis')
+    console.log('PostGIS enabled.')
+  }
+
+  // Whichever schema it landed in, make the type resolvable for the rest of
+  // this migration and for every later connection.
+  await db.query('SET search_path TO public, extensions')
+  try {
+    const { rows } = await db.query<{ current_database: string }>(
+      'SELECT current_database()',
+    )
+    await db.query(
+      `ALTER DATABASE "${rows[0].current_database}" SET search_path TO public, extensions`,
+    )
+  } catch {
+    // Managed providers may not allow ALTER DATABASE. The pool sets the same
+    // search_path per connection, so this is belt and braces.
+    console.log('(could not set the database search_path; the pool sets it per connection)')
+  }
+}
+
 async function migrate() {
   const db = pool()
   const sql = await readFile(SCHEMA, 'utf-8')
+
+  await enablePostgis(db)
 
   console.log('Applying db/schema.sql...')
   try {
