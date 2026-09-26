@@ -286,5 +286,12 @@ db:check` in `server/` is what proves it, and needs a connection string.
 - The engineer console below 1024px collapses its rails behind a toggle and
   scrolls the KPI bar. It is usable, not designed for that width — the driver
   routes are the phone experience.
-- Photo reports are procedurally drawn SVGs, not photographs
-  (`scripts/make-photos.py`).
+- **The pothole detector in the report flow is still drawn, not detected.** The
+  camera is real and the photograph is real; the bounding box is placed over
+  the frame with a plausible confidence. Reports need an engineer's approval
+  before they move a score, which is what keeps that honest.
+- **Imported regions have no condition data**, by design — they stay grey until
+  vehicles drive them. Only the seeded Chandigarh region has history, and that
+  history is simulated.
+- The fallback sample images are procedurally drawn SVGs
+  (`scripts/make-photos.py`), used only when no camera is available.
