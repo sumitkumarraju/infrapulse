@@ -299,11 +299,18 @@ export class PostgresRepository implements Repository {
     id: string,
     status: PhotoStatus,
   ): Promise<PhotoReport | null> {
-    // reviewed_at is required by a CHECK for anything but pending.
+    /*
+     * reviewed_at is required by a CHECK for anything but pending.
+     *
+     * Both casts are load-bearing. The same parameter is used as a
+     * photo_status and compared against a string literal, and Postgres will
+     * not infer two types for one parameter — it fails the whole statement
+     * with "inconsistent types deduced". Saying which is which resolves it.
+     */
     await this.pool.query(
       `UPDATE photo_reports
-       SET status = $2,
-           reviewed_at = CASE WHEN $2 = 'pending' THEN NULL ELSE now() END
+       SET status = $2::photo_status,
+           reviewed_at = CASE WHEN $2::text = 'pending' THEN NULL ELSE now() END
        WHERE id = $1`,
       [id, status],
     )

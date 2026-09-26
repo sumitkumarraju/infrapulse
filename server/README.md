@@ -158,10 +158,37 @@ npm run db:check               # prove the data layer actually works
 npm run dev                    # now backed by Postgres
 ```
 
-On Supabase the string is under **Project Settings → Database → Connection
-string → URI**. Use the direct connection (port 5432) for this server, which is
-long-running; the pooled one (6543) is for serverless. PostGIS is enabled by
-`db:migrate`.
+On Supabase, take the string from **Project Settings → Database → Connection
+string**, and read the next paragraph before you pick one.
+
+### Supabase's direct connection is IPv6-only
+
+`db.<ref>.supabase.co` publishes **only an AAAA record**. On a machine without
+working IPv6 — which includes most home connections in India — it fails with
+`ENOTFOUND`, which looks like a wrong hostname rather than a network one.
+
+Use the **session pooler** instead. It has IPv4, and the string differs in two
+ways that are easy to miss: the host is regional, and the user carries the
+project ref.
+
+```
+postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+```
+
+Session mode (**port 5432**), not transaction mode (6543): this server is
+long-running and transaction mode does not keep session state, including the
+`search_path` that makes PostGIS visible.
+
+If you do not know the region, the dashboard shows the full string under
+**Connect**. The region in the pooler host is not always the one you think —
+this project's is `ap-southeast-1`.
+
+Percent-encode the password. An `@` in it will otherwise split the URL at the
+wrong place: `@` is `%40`, `#` is `%23`, `%` is `%25`.
+
+PostGIS is enabled by `db:migrate`, into the `extensions` schema that Supabase
+uses; both pools set `search_path` per connection so the geometry type
+resolves.
 
 **`db:check` is the important step.** `PostgresRepository` cannot be unit
 tested without a database, so it ships unverified until this runs: it exercises

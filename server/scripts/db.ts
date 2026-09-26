@@ -86,7 +86,9 @@ async function enablePostgis(db: pg.Pool) {
   } catch {
     // Managed providers may not allow ALTER DATABASE. The pool sets the same
     // search_path per connection, so this is belt and braces.
-    console.log('(could not set the database search_path; the pool sets it per connection)')
+    console.log(
+      '(could not set the database search_path; the pool sets it per connection)',
+    )
   }
 }
 
@@ -184,8 +186,7 @@ async function importData() {
            (id, segment_id, image_url, label, confidence,
             box_x, box_y, box_w, box_h, severity, status, reporter,
             created_at, reviewed_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,
-                 CASE WHEN $11 = 'pending' THEN NULL ELSE now() END)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
          ON CONFLICT (id) DO NOTHING`,
         [
           photo.id,
@@ -201,6 +202,10 @@ async function importData() {
           photo.status,
           photo.reporter,
           photo.createdAt,
+          // Decided here rather than in SQL: reusing the status parameter in
+          // a CASE made Postgres try to read it as both photo_status and
+          // text in one statement, which it will not do.
+          photo.status === 'pending' ? null : photo.createdAt,
         ],
       )
     }
