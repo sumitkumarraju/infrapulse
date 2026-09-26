@@ -230,6 +230,26 @@ auth tests check that every operator route refuses an anonymous caller, that a
 tampered session is rejected, that the cookie is HttpOnly, and that a citizen
 can still report a pothole and a phone can still ingest without signing in.
 
+## Deploying
+
+This server needs a **long-running process**: Render, Railway, Fly.io, a VM.
+Not Vercel or Lambda functions — `/api/live` holds an SSE connection open, and
+the event bus and rate limiter are per-process, so serverless would drop
+subscribers between invocations and reset every limit.
+
+Three settings decide whether a deployment works at all:
+
+| Variable                              | Why it breaks without it                                                                              |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `CORS_ORIGINS`                        | Defaults to localhost. Set it to the dashboard's real origin or **every browser request is refused**. |
+| `OPERATOR_PASSWORD`, `SESSION_SECRET` | The server refuses to start in production with the development defaults.                              |
+| `DATABASE_URL`                        | Without it the server runs in memory and loses everything on restart.                                 |
+
+The session cookie switches to `SameSite=None; Secure` once cookies are marked
+secure, because a deployed dashboard calls its API cross-site and a `Lax`
+cookie is never sent on a cross-site fetch — sign-in would appear to work and
+every later request would arrive anonymous.
+
 ## Not done
 
 - **One operator role, no users.** Everyone who signs in is the same operator:

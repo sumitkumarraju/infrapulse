@@ -91,9 +91,21 @@ export function issueSessionCookie(
   const { token, maxAge } = mintSession(secret)
   setCookie(c, COOKIE, token, {
     httpOnly: true,
-    // Lax still sends the cookie on top-level navigation, which is what a
-    // bookmarked dashboard link needs, while blocking cross-site form posts.
-    sameSite: 'Lax',
+    /*
+     * Lax locally, None once the cookie is Secure.
+     *
+     * Deployed, the dashboard and the API sit on different domains — a Vercel
+     * app calling a server hosted elsewhere — which makes every API call
+     * cross-site. A Lax cookie is not sent on cross-site fetch at all, so
+     * signing in would appear to succeed and every subsequent request would
+     * arrive anonymous. None is what actually works there, and it requires
+     * Secure, which production has and plain-http development does not.
+     *
+     * The CSRF that Lax normally guards against is covered here by CORS: the
+     * allowed origins are an explicit list rather than `*`, and every mutation
+     * sends JSON, which forces a preflight an unlisted origin cannot pass.
+     */
+    sameSite: secure ? 'None' : 'Lax',
     secure,
     path: '/',
     maxAge,

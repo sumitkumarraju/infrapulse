@@ -563,7 +563,38 @@ describe('the engineer routes are not public', () => {
     )
     const header = login.headers.get('set-cookie') ?? ''
     expect(header).toContain('HttpOnly')
+    // Lax while the cookie is not Secure, which is local development.
     expect(header).toContain('SameSite=Lax')
+  })
+
+  it('uses a cross-site cookie once it is Secure', async () => {
+    /*
+     * Deployed, the dashboard and the API are on different domains, so every
+     * API call is cross-site and a Lax cookie is never sent — sign-in would
+     * appear to work and every later request would arrive anonymous. This is
+     * the assertion that would have caught that before deploy day.
+     */
+    const repo = new InMemoryRepository()
+    const bus = new EventBus()
+    const service = new InfraPulseService(repo, bus)
+    const deployed = createApp({
+      service,
+      quiet: true,
+      operatorPassword: OPERATOR_PASSWORD,
+      requireLogin: true,
+      secureCookies: true,
+    })
+
+    const login = await deployed.request(
+      '/api/auth/login',
+      post({ password: OPERATOR_PASSWORD }),
+    )
+    const header = login.headers.get('set-cookie') ?? ''
+
+    expect(header).toContain('SameSite=None')
+    // None without Secure is rejected outright by every current browser.
+    expect(header).toContain('Secure')
+    expect(header).toContain('HttpOnly')
   })
 
   it('rejects a tampered session', async () => {
