@@ -3,21 +3,31 @@ import { useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { CityMap, type Pulse } from '@/components/map/CityMap'
 import { Button } from '@/components/ui/Button'
-import { useLiveEvents, useSegmentsWithStatus } from '@/data/hooks'
+import {
+  useLiveEvents,
+  useProjectedScores,
+  useSegmentsWithStatus,
+} from '@/data/hooks'
+import { useDemoMode } from '@/demo/demoState'
 import { ActivityFeed } from '@/features/command/ActivityFeed'
 import { KpiBar } from '@/features/command/KpiBar'
 import { PriorityQueue } from '@/features/command/PriorityQueue'
 import { SegmentDrawer } from '@/features/command/SegmentDrawer'
+import { cn } from '@/lib/utils'
 
 const MAX_PULSES = 3
 
 export function Command() {
   const { data: segments, byId, isLoading, error } = useSegmentsWithStatus()
   const { events, latest } = useLiveEvents()
+  // Demo mode can project the whole city forward without leaving this screen.
+  const fastForwardDays = useDemoMode((s) => s.fastForwardDays)
+  const { data: projected } = useProjectedScores(fastForwardDays)
   const [searchParams, setSearchParams] = useSearchParams()
   const [highlightId, setHighlightId] = useState<number | null>(null)
   const [pulses, setPulses] = useState<Pulse[]>([])
   const [showHexagons, setShowHexagons] = useState(false)
+  const [railsOpen, setRailsOpen] = useState(false)
   const [flyTo, setFlyTo] = useState<{
     center: [number, number]
     token: number
@@ -112,6 +122,7 @@ export function Command() {
     <div className="relative h-[calc(100vh-3.5rem)] w-full overflow-hidden">
       <CityMap
         segments={segments}
+        scoreOverride={fastForwardDays > 0 ? projected : null}
         highlightId={highlightId}
         selectedId={selectedId}
         pulses={pulses}
@@ -130,7 +141,15 @@ export function Command() {
         </div>
 
         <div className="flex min-h-0 flex-1 items-start gap-4">
-          <div className="pointer-events-auto flex h-full min-h-0 flex-col gap-4">
+          {/* The rails are 360px each and the map is the point, so below `lg`
+              they collapse behind a toggle rather than covering the city. */}
+          <div
+            className={cn(
+              'pointer-events-auto h-full min-h-0 flex-col gap-4',
+              railsOpen ? 'flex' : 'hidden',
+              'lg:flex',
+            )}
+          >
             <div className="min-h-0 flex-1">
               <PriorityQueue
                 segments={segments}
@@ -139,10 +158,20 @@ export function Command() {
                 onHover={setHighlightId}
               />
             </div>
-            <ActivityFeed events={events} onSelect={select} />
+            <div className="hidden xl:block">
+              <ActivityFeed events={events} onSelect={select} />
+            </div>
           </div>
 
           <div className="pointer-events-auto ml-auto flex flex-col gap-2">
+            <Button
+              variant={railsOpen ? 'primary' : 'secondary'}
+              size="sm"
+              className="lg:hidden"
+              onClick={() => setRailsOpen((v) => !v)}
+            >
+              {railsOpen ? 'Hide list' : 'Priorities'}
+            </Button>
             <Button
               variant={showHexagons ? 'primary' : 'secondary'}
               size="sm"

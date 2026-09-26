@@ -14,7 +14,12 @@ function Tile({
   className?: string
 }) {
   return (
-    <div className={cn('flex min-w-0 flex-col justify-center gap-1', className)}>
+    <div
+      className={cn(
+        'flex min-w-[104px] shrink-0 flex-col justify-center gap-1 lg:min-w-0 lg:shrink',
+        className,
+      )}
+    >
       <span className="eyebrow truncate">{label}</span>
       {children}
     </div>
@@ -36,7 +41,10 @@ export function KpiBar() {
   return (
     <GlassPanel
       as="header"
-      className="grid h-[72px] grid-cols-[1.4fr_1fr_1fr_1.2fr_1fr_auto] items-center gap-6 px-6"
+      /* Five tiles do not fit a phone. Rather than shrink them into
+         illegibility, the bar scrolls sideways below `lg` and keeps each tile
+         at a readable width. */
+      className="flex h-[72px] items-center gap-6 overflow-x-auto px-6 lg:grid lg:grid-cols-[1.4fr_1fr_1fr_1.2fr_1fr_auto] lg:overflow-visible"
       aria-label="City statistics"
       static
     >

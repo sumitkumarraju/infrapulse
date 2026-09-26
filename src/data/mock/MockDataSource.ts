@@ -251,4 +251,21 @@ export class MockDataSource implements DataSource {
   async resetDemo(): Promise<void> {
     useDemoStore.getState().reset()
   }
+
+  /* --- Demo mode only (src/demo). Not part of the DataSource contract, so a
+     real backend is never expected to provide it. ----------------------- */
+
+  async simulateDrive(count = 12): Promise<void> {
+    const { stream } = await this.load()
+    stream.simulateDrive(count)
+  }
+
+  /** The worst segments, for the presenter tour and the verify-repair button. */
+  async worstSegmentIds(count = 3): Promise<number[]> {
+    const { statuses } = await this.load()
+    return [...statuses]
+      .sort((a, b) => b.priority - a.priority)
+      .slice(0, count)
+      .map((s) => s.id)
+  }
 }

@@ -33,7 +33,7 @@ npm run dev          # http://localhost:5173
 | `npm run dev` | Dev server. Syncs the MapLibre worker first. |
 | `npm run build` | Typecheck and production build. |
 | `npm test` | Vitest: the data model, the ramp, the knapsack. |
-| `npm run e2e` | Playwright: every route at 1440×900 and 390×844. |
+| `npm run e2e` | Playwright: every route at 1440×900 and 390×844, plus the demo flow three times over. |
 | `npm run fetch-roads` | Re-downloads roads from Overpass (output is committed). |
 | `npm run calibrate` | Prints the health-band mix the generator produces. |
 | `python scripts/make-photos.py` | Regenerates the mock road photos and their boxes. |
@@ -126,12 +126,26 @@ disagree.
 | `/app/impact` | Counters, report timeline, badges |
 | `/styleguide` | Token reference. Scaffolding, not a product screen. |
 
+Adding `?demo=1` to any URL turns on the presenter remote (`src/demo/`): simulate
+a drive, project the city 30 or 60 days forward without leaving the map, verify
+a repair, run a three-stop camera tour, and reset. It starts collapsed, because
+every corner of the app already holds a panel. It stays on as you navigate until
+`?demo=0`.
+
 ## 5. Known gaps
 
-- No PWA manifest or service worker yet, so the driver screens do not install
-  or work offline.
-- The landing page does not fly the camera into `/command`; it navigates.
-- Demo mode (`?demo=1`) with fast-forward and presenter tour is not built.
-- Phone sensors are untested on real hardware — they need HTTPS, so that waits
-  on a deployment.
-- Photo reports are procedurally drawn SVGs, not photographs.
+- **The PWA is built but unverified.** `vite-plugin-pwa` emits `sw.js`, a
+  manifest and icons, and all three serve correctly, but Claude's built-in
+  browser blocks service-worker registration in its partition — so installing
+  and opening offline has not actually been seen working. Test it in a normal
+  browser before claiming it.
+- **Phone sensors are untested on real hardware.** `DeviceMotion` and
+  geolocation need HTTPS, so this waits on a deployment. "Simulate drive"
+  covers the laptop case.
+- **Not deployed**, and no Lighthouse run, so the performance and PWA score
+  targets are unmeasured.
+- The engineer console below 1024px collapses its rails behind a toggle and
+  scrolls the KPI bar. It is usable, not designed for that width — the driver
+  routes are the phone experience.
+- Photo reports are procedurally drawn SVGs, not photographs
+  (`scripts/make-photos.py`).

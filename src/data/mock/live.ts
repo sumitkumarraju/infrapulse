@@ -62,6 +62,40 @@ export class MockLiveStream {
     }
   }
 
+  /**
+   * Pushes an event to this tab's own listeners.
+   *
+   * `broadcast` deliberately cannot do this: BroadcastChannel never delivers a
+   * message to the context that posted it. Demo mode drives the dashboard from
+   * the same tab, so it needs a local door.
+   */
+  emitNow(event: LiveEvent) {
+    this.emit(event)
+  }
+
+  /** A burst of bumps along the worst roads, as if someone had just driven them. */
+  simulateDrive(count = 12, gapMs = 260) {
+    const chosen = [...this.weighted]
+      .sort((a, b) => a.status.score - b.status.score)
+      .slice(0, Math.max(count, 30))
+
+    for (let i = 0; i < count; i++) {
+      const entry = chosen[Math.floor(this.rng() * chosen.length)]
+      if (!entry) return
+      setTimeout(() => {
+        this.emit({
+          type: 'bump',
+          segmentId: entry.segment.id,
+          at: new Date().toISOString(),
+          magnitude:
+            Math.round((7 + (1 - entry.status.score / 100) * 15) * 10) / 10,
+          position: entry.segment.center,
+          real: true,
+        })
+      }, i * gapMs)
+    }
+  }
+
   /** Driver screens call this to push a real detected bump to any dashboard. */
   static broadcast(event: LiveEvent) {
     if (typeof BroadcastChannel === 'undefined') return

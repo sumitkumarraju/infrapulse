@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { BrowserRouter } from 'react-router'
 import { Toaster } from 'sonner'
+import { DemoControls } from '@/demo/DemoControls'
 
 /* All data reaches components through TanStack Query, which in turn reads the
    active DataSource (CLAUDE.md 4.1). No component fetches anything itself, so
@@ -21,6 +22,7 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         {children}
+        <DemoControls />
         <Toaster
           theme="dark"
           position="top-right"

@@ -1,5 +1,6 @@
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
+import { motion } from 'motion/react'
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import seedrandom from 'seedrandom'
@@ -15,6 +16,8 @@ import { prefersReducedMotion } from '@/design/motion'
 
 const GRID = 9
 const SPACING = 4.2
+/** Length of the hand-off to /command (UI_DESIGN 5.1). */
+const FLY_SECONDS = 1.6
 
 function Blocks() {
   const rng = useMemo(() => seedrandom('infrapulse-demo:city'), [])
@@ -180,7 +183,51 @@ function DriftingCamera({ enabled }: { enabled: boolean }) {
   return null
 }
 
-function Scene({ animate }: { animate: boolean }) {
+/**
+ * The hand-off to /command: the camera drops toward the street and tilts until
+ * it is looking along the grid at roughly the pitch the map opens at, so the
+ * route change reads as one continuous move rather than a cut.
+ */
+function FlyDown({ active, onDone }: { active: boolean; onDone: () => void }) {
+  const start = useRef<number | null>(null)
+  const from = useRef<THREE.Vector3 | null>(null)
+
+  useFrame(({ camera, clock }) => {
+    if (!active) return
+
+    if (start.current === null) {
+      start.current = clock.elapsedTime
+      from.current = camera.position.clone()
+    }
+
+    const elapsed = clock.elapsedTime - start.current
+    const t = Math.min(1, elapsed / FLY_SECONDS)
+    // easeInOutCubic, matching the map's own fly-to (UI_DESIGN 6).
+    const eased = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2
+
+    const origin = from.current!
+    camera.position.set(
+      origin.x * (1 - eased * 0.85),
+      origin.y + (4.5 - origin.y) * eased,
+      origin.z + (11 - origin.z) * eased,
+    )
+    camera.lookAt(0, 1 + eased * 1.5, -6 * eased)
+
+    if (t >= 1) onDone()
+  })
+
+  return null
+}
+
+function Scene({
+  animate,
+  flying,
+  onFlyDone,
+}: {
+  animate: boolean
+  flying: boolean
+  onFlyDone: () => void
+}) {
   return (
     <>
       <color attach="background" args={['#060B18']} />
@@ -196,7 +243,8 @@ function Scene({ animate }: { animate: boolean }) {
       <PulseRing position={[6.3, 0.05, -6.3]} delay={0.9} />
       <PulseRing position={[2.1, 0.05, 10.5]} delay={1.6} />
 
-      <DriftingCamera enabled={animate} />
+      <DriftingCamera enabled={animate && !flying} />
+      <FlyDown active={flying} onDone={onFlyDone} />
 
       {animate && (
         <EffectComposer>
@@ -211,7 +259,17 @@ export function Landing() {
   const navigate = useNavigate()
   const { data: kpis } = useKpis()
   const [failed, setFailed] = useState(false)
+  const [flying, setFlying] = useState(false)
   const reduced = prefersReducedMotion()
+
+  function enter() {
+    // Reduced motion, or no WebGL to fly through: just go.
+    if (reduced || failed) {
+      navigate('/command')
+      return
+    }
+    setFlying(true)
+  }
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-void">
@@ -222,12 +280,34 @@ export function Landing() {
           onError={() => setFailed(true)}
           frameloop={reduced ? 'demand' : 'always'}
         >
-          <Scene animate={!reduced} />
+          <Scene
+            animate={!reduced}
+            flying={flying}
+            onFlyDone={() => navigate('/command')}
+          />
         </Canvas>
       )}
 
+      {/* The text clears out of the way as the camera dives, and the last few
+          hundred milliseconds fade to the map's own background so the route
+          change lands on an already-dark screen. */}
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-20 bg-void"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: flying ? 1 : 0 }}
+        transition={{
+          duration: flying ? FLY_SECONDS * 0.45 : 0.2,
+          delay: flying ? FLY_SECONDS * 0.55 : 0,
+        }}
+      />
+
       <div className="pointer-events-none absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-void via-void/40 to-transparent p-10">
-        <div className="pointer-events-auto flex max-w-2xl flex-col items-start gap-5">
+        <motion.div
+          className="pointer-events-auto flex max-w-2xl flex-col items-start gap-5"
+          animate={{ opacity: flying ? 0 : 1, y: flying ? 24 : 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
           <span className="eyebrow text-accent">
             Chandigarh University · Gharuan
           </span>
@@ -241,8 +321,8 @@ export function Landing() {
             remove the most risk per rupee.
           </p>
 
-          <Button size="lg" onClick={() => navigate('/command')}>
-            Enter Command Center
+          <Button size="lg" onClick={enter} disabled={flying}>
+            {flying ? 'Entering…' : 'Enter Command Center'}
           </Button>
 
           <div className="mt-4 flex flex-wrap gap-8">
@@ -273,7 +353,7 @@ export function Landing() {
               />
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   )
