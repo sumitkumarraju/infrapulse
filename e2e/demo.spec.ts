@@ -54,7 +54,9 @@ test.describe('demo flow', () => {
       // A repair gets verified, which moves a card and updates the KPI.
       await page.getByRole('button', { name: 'Verify a repair' }).click()
       await expect(page).toHaveURL(/work-orders/)
-      await expect(page.getByRole('heading', { name: 'Work orders' })).toBeVisible()
+      await expect(
+        page.getByRole('heading', { name: 'Work orders' }),
+      ).toBeVisible()
 
       // And reset puts everything back.
       await page.getByRole('button', { name: 'Reset demo' }).click()
@@ -65,6 +67,9 @@ test.describe('demo flow', () => {
   })
 
   test('the segment drawer deep-links and closes', async ({ page }) => {
+    // Loads the 1,108-segment map twice over, which is slow when the suite's
+    // workers are all doing the same thing at once.
+    test.slow()
     await page.goto('/command')
 
     const firstPriority = page
@@ -87,6 +92,34 @@ test.describe('demo flow', () => {
 
     await page.getByRole('button', { name: 'Close segment details' }).click()
     await expect(page).not.toHaveURL(/segment=/)
+  })
+
+  test('inspecting a defect flies the camera down to it', async ({ page }) => {
+    test.slow()
+    await page.goto('/command')
+
+    const map = page.locator('[data-map-zoom]')
+    await expect(map).toBeVisible()
+
+    await page.getByLabel('Fix these first').getByRole('button').first().click()
+
+    const drawer = page.getByLabel(/^Segment /)
+    await expect(drawer).toBeVisible({ timeout: 20_000 })
+
+    const resting = Number(await map.getAttribute('data-map-zoom'))
+
+    // The first defect in the list, which is the deepest one.
+    await drawer.getByRole('button', { name: 'Inspect' }).first().click()
+
+    // The camera pulls out before it descends, so the move is not monotonic —
+    // what matters is where it ends up.
+    await expect
+      .poll(async () => Number(await map.getAttribute('data-map-zoom')), {
+        timeout: 10_000,
+      })
+      .toBeGreaterThan(17)
+
+    expect(resting).toBeLessThan(17)
   })
 
   test('work orders survive a reload', async ({ page }) => {

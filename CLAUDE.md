@@ -148,6 +148,37 @@ a repair, run a three-stop camera tour, and reset. It starts collapsed, because
 every corner of the app already holds a panel. It stays on as you navigate until
 `?demo=0`.
 
+## 4. The 3D map
+
+`src/components/map/darkStyle.ts` declares the basemap rather than restyling a
+published one: landuse and parks tinted so a campus is recognisable, water,
+road casings, buildings extruded and shaded by height, and four tiers of labels
+(places, then POIs — schools, hospitals, colleges — then road names).
+
+On top, deck.gl draws what the basemap cannot: health-coloured paths with a
+glow pass, risk towers whose height is `risk30`, live pulse rings, and
+individual **pothole markers** from `shared/potholes.ts`. What appears depends
+on altitude, because legibility does:
+
+| Zoom   | What appears                                               |
+| ------ | ---------------------------------------------------------- |
+| < 15.2 | Roads, towers, pulses. The city as a whole.                |
+| ≥ 15.2 | Pothole markers, sized in real metres by width             |
+| ≥ 15.4 | Names and scores on the 24 highest-priority segments       |
+| ≥ 17   | Risk towers dissolve — at inspection height they are walls |
+| ≥ 17.2 | Depth labels on severe defects                             |
+
+**Inspecting a defect** (from the drawer, or an alert's "Inspect") plays a
+two-stage camera move: the camera lifts and turns first, then descends onto the
+target. Sliding straight across at high zoom loses the viewer — the ground
+rushes past with nothing to track — where pulling back keeps the surroundings
+visible through the whole move. A contracting ring marks where it lands. The
+map exposes `data-map-zoom` so this is testable; `e2e/demo.spec.ts` asserts it.
+
+Defects are **derived from the condition score**, not surveyed, and the UI says
+so: the drawer labels them "modelled". When the backend starts clustering real
+impact positions, `potholesFor` is the single function that gets replaced.
+
 ## 4a. The backend — `server/`
 
 Hono on Node, no database. Phones post impacts to `/api/ingest/bumps`; the

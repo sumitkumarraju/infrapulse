@@ -29,6 +29,7 @@ import {
 import { CRITICAL_LINE } from '@/data/mock/generate'
 import { drawerEnter, transitions } from '@/design/motion'
 import { scoreColor } from '@/lib/health'
+import { potholesFor } from '@shared/potholes'
 import { useDemoStore } from '@/store/demoStore'
 
 function Waterfall({ segment }: { segment: SegmentWithStatus }) {
@@ -94,15 +95,22 @@ function chartTooltip() {
 export function SegmentDrawer({
   segment,
   onClose,
+  onInspect,
 }: {
   segment: SegmentWithStatus | null
   onClose: () => void
+  /** Flies the camera down to a specific defect on this segment. */
+  onInspect?: (position: [number, number]) => void
 }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const setBudget = useDemoStore((s) => s.setBudget)
   const budgetInr = useDemoStore((s) => s.budgetInr)
   const budgetPlan = useDemoStore((s) => s.budgetPlan)
+
+  /* Individual defects along this 50m stretch. Derived from the condition
+     score rather than surveyed, and labelled as such — see shared/potholes.ts. */
+  const defects = segment ? potholesFor(segment, segment.status.score) : []
 
   const { data: history } = useSegmentHistory(segment?.id ?? null)
   const { data: forecast } = useForecast(segment?.id ?? null)
@@ -180,6 +188,60 @@ export function SegmentDrawer({
             <div className="mt-4">
               <RoadTile3D segmentId={segment.id} score={segment.status.score} />
             </div>
+
+            {defects.length > 0 && (
+              <div className="border-hairline rounded-card mt-4 flex flex-col gap-2 border p-3">
+                <div className="flex items-baseline justify-between">
+                  <span className="eyebrow">
+                    Detected defects
+                    <span className="text-text-3 ml-2 normal-case">
+                      modelled
+                    </span>
+                  </span>
+                  <span className="metric text-metric-sm text-text-2">
+                    {defects.length}
+                  </span>
+                </div>
+
+                <ul className="flex flex-col">
+                  {defects.slice(0, 4).map((defect) => (
+                    <li
+                      key={defect.id}
+                      className="border-hairline flex items-center gap-3 border-b py-1.5 last:border-b-0"
+                    >
+                      <span
+                        aria-hidden
+                        className="size-2 shrink-0 rounded-full"
+                        style={{
+                          background:
+                            defect.severity === 'severe'
+                              ? 'var(--color-health-critical)'
+                              : defect.severity === 'moderate'
+                                ? 'var(--color-health-watch)'
+                                : 'var(--color-text-3)',
+                        }}
+                      />
+                      <span className="flex-1 text-sm capitalize">
+                        {defect.severity}
+                      </span>
+                      <span className="metric text-metric-sm text-text-2">
+                        {defect.depthCm.toFixed(0)}cm deep · {defect.widthCm}cm
+                        wide
+                      </span>
+                      {onInspect && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => onInspect(defect.position)}
+                        >
+                          Inspect
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="mt-5 flex items-center gap-6">
               <ScoreRing score={segment.status.score} />

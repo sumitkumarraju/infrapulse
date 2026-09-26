@@ -13,6 +13,7 @@ import { ActivityFeed } from '@/features/command/ActivityFeed'
 import { KpiBar } from '@/features/command/KpiBar'
 import { PriorityQueue } from '@/features/command/PriorityQueue'
 import { SegmentDrawer } from '@/features/command/SegmentDrawer'
+import { worstPothole } from '@shared/potholes'
 import { cn } from '@/lib/utils'
 
 const MAX_PULSES = 3
@@ -31,6 +32,7 @@ export function Command() {
   const [flyTo, setFlyTo] = useState<{
     center: [number, number]
     token: number
+    cinematic?: boolean
   } | null>(null)
   const flyToken = useRef(0)
 
@@ -92,8 +94,19 @@ export function Command() {
           : undefined,
         duration: 8000,
         action: {
-          label: 'Open',
-          onClick: () => select(latest.segmentId),
+          label: 'Inspect',
+          onClick: () => {
+            select(latest.segmentId)
+            const target = byId.get(latest.segmentId)
+            if (!target) return
+            const worst = worstPothole(target, target.status.score)
+            flyToken.current += 1
+            setFlyTo({
+              center: worst?.position ?? target.center,
+              token: flyToken.current,
+              cinematic: true,
+            })
+          },
         },
       })
     }
@@ -183,7 +196,18 @@ export function Command() {
         </div>
       </div>
 
-      <SegmentDrawer segment={selected} onClose={close} />
+      <SegmentDrawer
+        segment={selected}
+        onClose={close}
+        onInspect={(position) => {
+          flyToken.current += 1
+          setFlyTo({
+            center: position,
+            token: flyToken.current,
+            cinematic: true,
+          })
+        }}
+      />
 
       {isLoading && (
         <div className="bg-void/70 absolute inset-0 z-40 flex items-center justify-center">
