@@ -129,11 +129,23 @@ function SpeedArc({ kmh }: { kmh: number }) {
 
 export function Trip() {
   const navigate = useNavigate()
-  const { state, start, stop, simulate } = useBumpDetection()
+  const {
+    state,
+    start,
+    stop,
+    simulate,
+    startRecording,
+    stopRecording,
+    mark,
+    downloadTrace,
+  } = useBumpDetection()
   const wakeLock = useWakeLock()
   const [flash, setFlash] = useState(false)
   const [chips, setChips] = useState<number[]>([])
   const [finished, setFinished] = useState(false)
+  /* Off by default: recording is for calibration drives, not every trip. */
+  const [wantRecording, setWantRecording] = useState(false)
+  const [saved, setSaved] = useState<boolean | null>(null)
   const lastCount = useRef(0)
 
   useEffect(() => {
@@ -197,6 +209,33 @@ export function Trip() {
             />
           </div>
         </div>
+
+        {state.recordedSamples > 0 && (
+          <div className="border-hairline rounded-card flex flex-col gap-2 border p-4">
+            <span className="eyebrow">Raw trace</span>
+            <p className="text-text-2 text-sm">
+              {state.recordedSamples.toLocaleString('en-IN')} readings and{' '}
+              {state.markers.length} marked potholes. Save this and the detector
+              can be re-tuned against this drive without driving it again.
+            </p>
+            <Button
+              variant="secondary"
+              onClick={() => setSaved(downloadTrace())}
+            >
+              Save trace to this phone
+            </Button>
+            {saved === true && (
+              <span className="text-health-good text-xs">
+                Saved to your downloads.
+              </span>
+            )}
+            {saved === false && (
+              <span className="text-health-critical text-xs">
+                Nothing to save — the trip was too short.
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="flex gap-2">
           <Button onClick={() => navigate('/app')}>Done</Button>
@@ -286,12 +325,30 @@ export function Trip() {
             Motion and location permissions are requested on the tap below — iOS
             only grants them from inside the gesture.
           </p>
+          <label className="border-hairline rounded-card flex items-start gap-3 border p-3">
+            <input
+              type="checkbox"
+              checked={wantRecording}
+              onChange={(e) => setWantRecording(e.target.checked)}
+              className="mt-1 size-5 accent-[var(--color-accent)]"
+            />
+            <span className="flex flex-col gap-0.5">
+              <span className="text-sm">Record raw sensor trace</span>
+              <span className="text-text-2 text-xs">
+                Keeps every reading so the detector can be tuned against this
+                drive afterwards. Saved to this phone at the end — nothing is
+                uploaded.
+              </span>
+            </span>
+          </label>
+
           <div className="flex flex-wrap gap-2">
             <Button
               size="lg"
               onClick={() => {
                 void start()
                 void wakeLock.request()
+                if (wantRecording) startRecording()
               }}
             >
               Use phone sensors
@@ -302,6 +359,7 @@ export function Trip() {
               onClick={() => {
                 simulate()
                 void wakeLock.request()
+                if (wantRecording) startRecording()
               }}
             >
               Simulate drive
@@ -316,12 +374,36 @@ export function Trip() {
         </div>
       )}
 
+      {state.running && state.recording && (
+        <div className="border-hairline rounded-card flex flex-col gap-3 border p-3">
+          <div className="flex items-baseline justify-between">
+            <span className="eyebrow text-accent">Recording</span>
+            <span className="metric text-metric-sm text-text-2">
+              {state.recordedSamples.toLocaleString('en-IN')} samples ·{' '}
+              {state.markers.length} marked
+            </span>
+          </div>
+
+          {/* Ground truth. Tapped when the driver feels a hit, so the replay
+              can tell a correct detection from a lucky one. */}
+          <Button
+            size="lg"
+            variant="secondary"
+            className="text-h3 min-h-[72px]"
+            onClick={mark}
+          >
+            I felt that one
+          </Button>
+        </div>
+      )}
+
       {state.running && (
         <Button
           size="lg"
           variant="destructive"
           onClick={() => {
             stop()
+            stopRecording()
             void wakeLock.release()
             setFinished(true)
           }}

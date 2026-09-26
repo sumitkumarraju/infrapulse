@@ -19,7 +19,8 @@
     "sync-map-worker": "tsx scripts/sync-map-worker.ts",
     "predev": "npm run sync-map-worker",
     "prebuild": "npm run sync-map-worker",
-    "calibrate": "tsx scripts/calibrate.ts"
+    "calibrate": "tsx scripts/calibrate.ts",
+    "replay": "tsx scripts/replay-trace.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

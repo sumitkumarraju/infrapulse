@@ -1,28 +1,24 @@
-/* Real bump detection, running in the browser on the phone's own sensors.
+/* Reading the phone's sensors, and recording what they said.
  *
- * The algorithm is the one in CLAUDE.md section 5:
- *   1. Low-pass the accelerometer to estimate gravity.
- *   2. Project acceleration onto gravity to get the vertical component, so the
- *      phone can sit at any angle in the cradle.
- *   3. Call a spike when it exceeds max(6 m/s², running mean + 4 standard
- *      deviations) — an absolute floor so a smooth road cannot make the
- *      detector hypersensitive, and an adaptive term so a rough one does not
- *      fire continuously.
- *   4. Ignore everything below 3 m/s, because a stationary phone being picked
- *      up looks exactly like a pothole.
- *   5. Hold off 1.5s after a hit, so one pothole is one bump.
+ * The detection itself lives in shared/bumpDetector.ts as a pure state machine.
+ * This hook is the plumbing around it: permissions, event listeners, GPS, and
+ * an optional recorder that keeps every raw sample so a drive can be replayed
+ * through different settings afterwards instead of being re-driven.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { MockLiveStream } from '@/data/mock/live'
 import { BumpUploader } from '@/features/driver/sensors/BumpUploader'
+import {
+  BumpDetector,
+  DEFAULT_DETECTOR_CONFIG,
+  TRACE_VERSION,
+  type RawSample,
+  type Trace,
+} from '@shared/bumpDetector'
 
-const GRAVITY_ALPHA = 0.85
-const WINDOW = 120
-const ABSOLUTE_FLOOR = 6
-const SIGMA_MULTIPLIER = 4
-const MIN_SPEED_MS = 3
-const COOLDOWN_MS = 1500
+/** A ten-minute drive at 60Hz is ~36,000 samples, about 2MB of JSON. */
+const MAX_RECORDED_SAMPLES = 120_000
 
 export interface DetectedBump {
   at: number
@@ -44,6 +40,11 @@ export interface SensorState {
   heading: { alpha: number; beta: number; gamma: number }
   bumps: DetectedBump[]
   distanceM: number
+  /** True while raw samples are being kept for offline tuning. */
+  recording: boolean
+  recordedSamples: number
+  /** Points the driver marked by hand — ground truth for the replay. */
+  markers: number[]
 }
 
 const EMPTY: SensorState = {
@@ -57,15 +58,20 @@ const EMPTY: SensorState = {
   heading: { alpha: 0, beta: 0, gamma: 0 },
   bumps: [],
   distanceM: 0,
+  recording: false,
+  recordedSamples: 0,
+  markers: [],
 }
 
 export function useBumpDetection(segmentIdForDemo: number | null = null) {
   const [state, setState] = useState<SensorState>(EMPTY)
 
-  const gravity = useRef({ x: 0, y: 0, z: 9.81 })
-  const samples = useRef<number[]>([])
-  const lastBump = useRef(0)
+  const detector = useRef(new BumpDetector(DEFAULT_DETECTOR_CONFIG))
   const lastPosition = useRef<GeolocationCoordinates | null>(null)
+  /** Raw samples, kept only while recording. Never uploaded automatically. */
+  const recorded = useRef<RawSample[]>([])
+  const recordingRef = useRef(false)
+  const markersRef = useRef<number[]>([])
   const watchId = useRef<number | null>(null)
   const simulating = useRef<ReturnType<typeof setInterval> | null>(null)
   const uploader = useRef(new BumpUploader())
@@ -103,55 +109,42 @@ export function useBumpDetection(segmentIdForDemo: number | null = null) {
       const acceleration = event.accelerationIncludingGravity
       if (!acceleration) return
 
-      const x = acceleration.x ?? 0
-      const y = acceleration.y ?? 0
-      const z = acceleration.z ?? 0
-
-      // Low-pass: whatever is left after the shaking is gravity.
-      gravity.current = {
-        x: GRAVITY_ALPHA * gravity.current.x + (1 - GRAVITY_ALPHA) * x,
-        y: GRAVITY_ALPHA * gravity.current.y + (1 - GRAVITY_ALPHA) * y,
-        z: GRAVITY_ALPHA * gravity.current.z + (1 - GRAVITY_ALPHA) * z,
+      const coords = lastPosition.current
+      const sample: RawSample = {
+        t: Date.now(),
+        x: acceleration.x ?? 0,
+        y: acceleration.y ?? 0,
+        z: acceleration.z ?? 0,
+        speedMs: coords?.speed ?? null,
+        lat: coords?.latitude ?? null,
+        lon: coords?.longitude ?? null,
       }
 
-      const g = gravity.current
-      const gMagnitude = Math.hypot(g.x, g.y, g.z) || 9.81
-      // Project onto gravity, then subtract it: what is left is the road.
-      const vertical = (x * g.x + y * g.y + z * g.z) / gMagnitude - gMagnitude
+      // Recorded before detection, and independently of it: the whole point is
+      // to keep what the sensor said, not what this build made of it.
+      if (
+        recordingRef.current &&
+        recorded.current.length < MAX_RECORDED_SAMPLES
+      ) {
+        recorded.current.push(sample)
+      }
 
-      const window_ = samples.current
-      window_.push(vertical)
-      if (window_.length > WINDOW) window_.shift()
-
-      const mean = window_.reduce((a, b) => a + b, 0) / window_.length
-      const variance =
-        window_.reduce((a, b) => a + (b - mean) ** 2, 0) /
-        Math.max(1, window_.length - 1)
-      const threshold = Math.max(
-        ABSOLUTE_FLOOR,
-        mean + SIGMA_MULTIPLIER * Math.sqrt(variance),
-      )
+      const step = detector.current.push(sample)
 
       setState((s) => ({
         ...s,
-        vertical,
-        history: [...s.history.slice(-179), vertical],
+        vertical: step.vertical,
+        history: [...s.history.slice(-179), step.vertical],
+        recordedSamples: recorded.current.length,
       }))
 
-      const now = Date.now()
-      const coords = lastPosition.current
-      const fastEnough = (coords?.speed ?? 0) >= MIN_SPEED_MS
-
-      if (
-        Math.abs(vertical) > threshold &&
-        now - lastBump.current > COOLDOWN_MS &&
-        fastEnough
-      ) {
-        lastBump.current = now
+      if (step.impact) {
         recordBump(
-          Math.abs(vertical),
-          coords ? [coords.longitude, coords.latitude] : null,
-          coords?.speed ?? 0,
+          step.impact.magnitude,
+          step.impact.lon !== null && step.impact.lat !== null
+            ? [step.impact.lon, step.impact.lat]
+            : null,
+          step.impact.speedMs,
         )
       }
     },
@@ -243,37 +236,154 @@ export function useBumpDetection(segmentIdForDemo: number | null = null) {
     setState((s) => ({ ...s, running: false }))
   }, [onMotion, onOrientation])
 
-  /** Laptops have no accelerometer, so the demo drives itself instead. */
+  /**
+   * Laptops have no accelerometer, so the demo drives itself — but through the
+   * same detector, not around it. Synthetic samples go in as if they had come
+   * from a phone lying flat, so the simulated path exercises the real code.
+   */
   const simulate = useCallback(() => {
     if (simulating.current) return
     setState((s) => ({ ...s, running: true, speedMs: 11 }))
 
     simulating.current = setInterval(() => {
-      const base = (Math.random() - 0.5) * 2.4
-      const hit = Math.random() < 0.06
-      const vertical = hit ? base + 9 + Math.random() * 7 : base
+      /* One hit every few seconds, not several a second.
+       *
+       * The first version fired on 6% of samples — a pothole every 0.8s — and
+       * detected none of them, which was the detector working correctly: the
+       * adaptive threshold rises to meet a road that rough, which is the whole
+       * point of the 4-sigma term. It only looked like a bug because the old
+       * simulator called recordBump directly and never went through the
+       * detector at all. Now that it does, the synthetic road has to be a road
+       * someone could plausibly drive. */
+      const hit = Math.random() < 0.012
+      const jolt = hit ? 11 + Math.random() * 8 : 0
+      const sample: RawSample = {
+        t: Date.now(),
+        x: (Math.random() - 0.5) * 0.6,
+        y: (Math.random() - 0.5) * 0.6,
+        // Flat on a dash: gravity on z, road noise on top.
+        z: 9.81 + (Math.random() - 0.5) * 2.0 + jolt,
+        speedMs: 11,
+        lat: null,
+        lon: null,
+      }
+
+      if (
+        recordingRef.current &&
+        recorded.current.length < MAX_RECORDED_SAMPLES
+      ) {
+        recorded.current.push(sample)
+      }
+
+      const step = detector.current.push(sample)
 
       setState((s) => ({
         ...s,
-        vertical,
-        history: [...s.history.slice(-179), vertical],
+        vertical: step.vertical,
+        history: [...s.history.slice(-179), step.vertical],
         distanceM: s.distanceM + 11 / 20,
+        recordedSamples: recorded.current.length,
       }))
 
-      if (hit && Date.now() - lastBump.current > COOLDOWN_MS) {
-        lastBump.current = Date.now()
-        recordBump(Math.abs(vertical), null)
+      if (step.impact) {
+        recordBump(step.impact.magnitude, null, step.impact.speedMs)
       }
     }, 50)
   }, [recordBump])
 
+  /* --- Raw capture, for calibrating against a real road ----------------- */
+
+  const startRecording = useCallback(() => {
+    recorded.current = []
+    markersRef.current = []
+    recordingRef.current = true
+    setState((s) => ({
+      ...s,
+      recording: true,
+      recordedSamples: 0,
+      markers: [],
+    }))
+  }, [])
+
+  const stopRecording = useCallback(() => {
+    recordingRef.current = false
+    setState((s) => ({ ...s, recording: false }))
+  }, [])
+
+  /**
+   * "That was a pothole." Ground truth, tapped by the driver.
+   *
+   * Without these a replay can only count how many impacts a setting reported,
+   * never whether they were the right ones.
+   */
+  const mark = useCallback(() => {
+    const at = Date.now()
+    markersRef.current = [...markersRef.current, at]
+    setState((s) => ({ ...s, markers: [...s.markers, at] }))
+    if (navigator.vibrate) navigator.vibrate([20, 40, 20])
+  }, [])
+
+  /** The recorded drive, in the shape scripts/replay-trace.ts expects. */
+  const buildTrace = useCallback((notes?: string): Trace | null => {
+    const samples = recorded.current
+    if (samples.length < 2) return null
+
+    const seconds = (samples[samples.length - 1].t - samples[0].t) / 1000
+    return {
+      version: TRACE_VERSION,
+      recordedAt: new Date(samples[0].t).toISOString(),
+      config: detector.current.config,
+      device: {
+        userAgent: navigator.userAgent,
+        // Measured rather than assumed: phones vary, and throttle.
+        sampleRateHz:
+          seconds > 0 ? Math.round((samples.length / seconds) * 10) / 10 : 0,
+      },
+      samples,
+      markers: markersRef.current.map((at) => ({ at })),
+      notes,
+    }
+  }, [])
+
+  /** Saves the trace to the phone. Nothing is uploaded. */
+  const downloadTrace = useCallback(
+    (notes?: string) => {
+      const trace = buildTrace(notes)
+      if (!trace) return false
+
+      const blob = new Blob([JSON.stringify(trace)], {
+        type: 'application/json',
+      })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `infrapulse-trace-${trace.recordedAt.replace(/[:.]/g, '-')}.json`
+      link.click()
+      URL.revokeObjectURL(url)
+      return true
+    },
+    [buildTrace],
+  )
+
   const reset = useCallback(() => {
-    samples.current = []
-    lastBump.current = 0
+    detector.current.reset()
+    recorded.current = []
+    markersRef.current = []
+    recordingRef.current = false
     setState((s) => ({ ...EMPTY, supported: s.supported }))
   }, [])
 
   useEffect(() => stop, [stop])
 
-  return { state, start, stop, simulate, reset }
+  return {
+    state,
+    start,
+    stop,
+    simulate,
+    reset,
+    startRecording,
+    stopRecording,
+    mark,
+    downloadTrace,
+  }
 }

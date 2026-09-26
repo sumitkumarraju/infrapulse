@@ -113,7 +113,8 @@ function syntheticGrid(): OverpassWay[] {
     ways.push({
       id: id++,
       tags: {
-        highway: i % 5 === 0 ? 'secondary' : i % 2 === 0 ? 'tertiary' : 'residential',
+        highway:
+          i % 5 === 0 ? 'secondary' : i % 2 === 0 ? 'tertiary' : 'residential',
         name: `Synthetic Road E${i + 1}`,
       },
       geometry: [
@@ -128,7 +129,8 @@ function syntheticGrid(): OverpassWay[] {
     ways.push({
       id: id++,
       tags: {
-        highway: j % 5 === 0 ? 'primary' : j % 3 === 0 ? 'tertiary' : 'residential',
+        highway:
+          j % 5 === 0 ? 'primary' : j % 3 === 0 ? 'tertiary' : 'residential',
         name: `Synthetic Road N${j + 1}`,
       },
       geometry: [
@@ -166,8 +168,9 @@ async function main() {
           lon: p.lon ?? p.center?.lon,
           kind: p.tags?.amenity ?? 'school',
         }))
-        .filter((p): p is { lat: number; lon: number; kind: string } =>
-          Number.isFinite(p.lat) && Number.isFinite(p.lon),
+        .filter(
+          (p): p is { lat: number; lon: number; kind: string } =>
+            Number.isFinite(p.lat) && Number.isFinite(p.lon),
         )
       console.log(`  ${pois.length} schools and hospitals`)
     } catch {

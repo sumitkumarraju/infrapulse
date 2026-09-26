@@ -26,9 +26,25 @@ const good = statuses.filter((s) => s.band === 'good')
 const aboutToFail = watch.filter((s) => s.trend30 < -0.08 && s.risk30 > 0.4)
 
 console.log('segments      ', n)
-console.log('critical <40  ', critical.length, pct(critical.length), '(target ~15%)')
+console.log(
+  'critical <40  ',
+  critical.length,
+  pct(critical.length),
+  '(target ~15%)',
+)
 console.log('watch 40-69   ', watch.length, pct(watch.length))
 console.log('good >=70     ', good.length, pct(good.length))
-console.log('about to fail ', aboutToFail.length, pct(aboutToFail.length), '(target ~5%)')
-console.log('mean score    ', (statuses.reduce((a, s) => a + s.score, 0) / n).toFixed(1))
-console.log('mean risk30   ', (statuses.reduce((a, s) => a + s.risk30, 0) / n).toFixed(3))
+console.log(
+  'about to fail ',
+  aboutToFail.length,
+  pct(aboutToFail.length),
+  '(target ~5%)',
+)
+console.log(
+  'mean score    ',
+  (statuses.reduce((a, s) => a + s.score, 0) / n).toFixed(1),
+)
+console.log(
+  'mean risk30   ',
+  (statuses.reduce((a, s) => a + s.risk30, 0) / n).toFixed(3),
+)

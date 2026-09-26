@@ -179,6 +179,40 @@ Defects are **derived from the condition score**, not surveyed, and the UI says
 so: the drawer labels them "modelled". When the backend starts clustering real
 impact positions, `potholesFor` is the single function that gets replaced.
 
+## 4b. Calibrating the detector against a real road
+
+The detection algorithm lives in `shared/bumpDetector.ts` as a pure state
+machine, deliberately outside React. Its thresholds are **educated guesses**
+until someone drives a real road, and the only way to turn a guess into a
+number is to record the raw sensor stream once and replay it through many
+settings — impossible if the algorithm is welded to a component.
+
+The workflow:
+
+1. On the trip screen, tick **Record raw sensor trace** before starting.
+2. Drive a route whose bad patches you already know. Tap **I felt that one** at
+   each pothole: that is the ground truth, and without it a replay can only
+   count detections, never tell whether they were the right ones.
+3. Stop the trip and **Save trace to this phone**. Nothing is uploaded.
+4. Replay it:
+
+```bash
+npm run replay -- path/to/trace.json --sweep
+```
+
+It reports, per setting, how many impacts were found, how many matched a
+marker, how many were missed and how many were spurious — then recall and
+precision. Recall matters more: a missed pothole is invisible, while a false
+positive is diluted by every other driver who reported nothing at that spot.
+
+The first number to check is `gravityAlpha`. At 60Hz the current 0.85 is about
+a 2.6Hz cutoff, which is fast for a gravity estimator — the usual range is
+0.2–0.5Hz (0.98–0.995 at that rate). Too fast and the "gravity" estimate starts
+tracking the road and cancels the signal being measured. On synthetic traces the
+sweep already prefers 0.95–0.99.
+
+One drive is one road, one car and one mount. Do not tune to a single trace.
+
 ## 4a. The backend — `server/`
 
 Hono on Node, no database. Phones post impacts to `/api/ingest/bumps`; the
@@ -199,9 +233,11 @@ process).
   browser blocks service-worker registration in its partition — so installing
   and opening offline has not actually been seen working. Test it in a normal
   browser before claiming it.
-- **Phone sensors are untested on real hardware.** `DeviceMotion` and
-  geolocation need HTTPS, so this waits on a deployment. "Simulate drive"
-  covers the laptop case.
+- **Phone sensors are untested on real hardware**, so every detector threshold
+  is still a guess. `DeviceMotion` and geolocation need a secure context: either
+  deploy, tunnel (`npx cloudflared tunnel --url http://localhost:5173`), or use
+  Chrome's USB port forwarding, which makes the phone see `localhost` and needs
+  nothing public. Then record a trace and see section 4b.
 - **Not deployed**, and no Lighthouse run, so the performance and PWA score
   targets are unmeasured.
 - **The backend has no database and no deployment.** It runs in one process and
