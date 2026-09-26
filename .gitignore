@@ -30,3 +30,6 @@ dist-ssr
 
 # Agent skill installs (regenerate with the commands in README)
 /.agents
+
+# Third-party skills installed by `npx skills add` (see README)
+/.claude/skills
