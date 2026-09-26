@@ -68,12 +68,26 @@ export default defineConfig({
       '@shared': fileURLToPath(new URL('./shared', import.meta.url)),
     },
   },
+  /* Tunnelled hosts.
+   *
+   * Vite refuses requests whose Host header it does not recognise, which is a
+   * real protection against DNS rebinding and also exactly what makes a tunnel
+   * show "Blocked request" instead of the app. Phone sensors need a secure
+   * context, a tunnel is the easiest way to get one, so the tunnel providers'
+   * domains are allowed by name rather than switching the check off. */
   server: {
+    allowedHosts: ['.trycloudflare.com', '.ngrok-free.app', '.loca.lt'],
     port: 5173,
     // The driver screens need real DeviceMotion and GPS, which browsers only
     // expose over HTTPS or on the LAN host itself. `--host` plus a Vercel
     // preview covers phone testing in phase 7.
     host: true,
+  },
+  // The built app is what a phone should be given: the service worker only
+  // exists in a build, so PWA install and offline can only be tested here.
+  preview: {
+    allowedHosts: ['.trycloudflare.com', '.ngrok-free.app', '.loca.lt'],
+    port: 4173,
   },
   test: {
     environment: 'jsdom',
