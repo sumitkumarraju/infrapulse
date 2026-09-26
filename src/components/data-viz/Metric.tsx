@@ -1,3 +1,4 @@
+/* oxlint-disable react/only-export-components */
 import { animate, useMotionValue } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { DURATION, EASE, prefersReducedMotion } from '@/design/motion'
@@ -42,17 +43,7 @@ export function CountUp({
   )
 }
 
-/** Indian digit grouping — 1,42,80,000 rather than 14,280,000. */
-export function formatInr(value: number): string {
-  const rounded = Math.round(value)
-  if (rounded >= 1_00_00_000) return `₹${(rounded / 1_00_00_000).toFixed(2)} cr`
-  if (rounded >= 1_00_000) return `₹${(rounded / 1_00_000).toFixed(1)} L`
-  return `₹${rounded.toLocaleString('en-IN')}`
-}
-
-export function formatInrExact(value: number): string {
-  return `₹${Math.round(value).toLocaleString('en-IN')}`
-}
+export { formatInr, formatInrExact } from '@/lib/format'
 
 /** A 30-point trend line, no axes — context, not a chart. */
 export function Sparkline({

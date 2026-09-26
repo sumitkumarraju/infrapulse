@@ -33,7 +33,14 @@ export function ReportPothole() {
   const [shot, setShot] = useState(1)
   const [photo, setPhoto] = useState<string | null>(null)
   const countBump = useDemoStore((s) => s.countBump)
-  const camera = useCamera()
+  const {
+    videoRef,
+    state: cameraState,
+    error: cameraError,
+    start: startCamera,
+    stop: stopCamera,
+    capture: captureCamera,
+  } = useCamera()
 
   const rng = seedrandom(`infrapulse-demo:report:${shot}`)
   const box = {
@@ -54,11 +61,11 @@ export function ReportPothole() {
   const fallbackImage = `/mock-photos/road-${(shot % 8) + 1}.svg`
 
   function takeShot() {
-    if (camera.state === 'live') {
-      const frame = camera.capture()
+    if (cameraState === 'live') {
+      const frame = captureCamera()
       if (frame) {
         setPhoto(frame)
-        camera.stop()
+        stopCamera()
         setStage('scanning')
         return
       }
@@ -92,7 +99,7 @@ export function ReportPothole() {
     )
   }
 
-  const showingLiveCamera = stage === 'capture' && camera.state === 'live'
+  const showingLiveCamera = stage === 'capture' && cameraState === 'live'
 
   return (
     <div className="flex flex-col gap-5 p-5">
@@ -105,7 +112,7 @@ export function ReportPothole() {
         {/* Kept mounted rather than conditionally rendered: the stream is
             attached to this element, and remounting it drops the feed. */}
         <video
-          ref={camera.videoRef}
+          ref={videoRef}
           playsInline
           muted
           className={
@@ -158,31 +165,31 @@ export function ReportPothole() {
 
       {stage === 'capture' && (
         <>
-          {camera.state === 'live' ? (
+          {cameraState === 'live' ? (
             <div className="flex flex-col gap-2">
               <Button size="lg" className="w-full" onClick={takeShot}>
                 Capture
               </Button>
-              <Button variant="ghost" onClick={camera.stop}>
+              <Button variant="ghost" onClick={stopCamera}>
                 Turn the camera off
               </Button>
             </div>
           ) : (
             <div className="border-hairline bg-surface-1 rounded-card flex flex-col gap-3 border p-4">
               <p className="text-text-2 text-sm">
-                {camera.state === 'denied'
+                {cameraState === 'denied'
                   ? 'Camera access was declined. You can still submit using a sample image, or allow the camera and try again.'
-                  : camera.error
-                    ? camera.error
+                  : cameraError
+                    ? cameraError
                     : 'Use the camera to photograph the damage, or submit a sample image to see the flow.'}
               </p>
               <Button
                 size="lg"
                 className="w-full"
-                onClick={() => void camera.start()}
-                disabled={camera.state === 'starting'}
+                onClick={() => void startCamera()}
+                disabled={cameraState === 'starting'}
               >
-                {camera.state === 'starting'
+                {cameraState === 'starting'
                   ? 'Starting camera…'
                   : 'Open camera'}
               </Button>

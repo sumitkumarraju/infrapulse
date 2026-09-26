@@ -544,6 +544,7 @@ export function CityMap({
     /* --- Where the camera just landed ------------------------------------ */
 
     if (focus) {
+      // oxlint-disable-next-line react/purity
       const age = (performance.now() - focus.at) / 1000
       if (age >= 0 && age < 4) {
         result.push(
@@ -581,6 +582,7 @@ export function CityMap({
     }
 
     if (pulses.length > 0) {
+      // oxlint-disable-next-line react/purity
       const now = performance.now()
       const live = pulses.filter((p) => now - p.start < PULSE_MS)
       if (live.length > 0) {

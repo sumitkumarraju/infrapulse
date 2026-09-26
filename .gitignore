@@ -36,6 +36,13 @@ dist-ssr
 
 # Server build output
 /server/dist
+*.tsbuildinfo
+
+# Vercel
+.vercel
+
+# Coverage
+coverage
 
 # Secrets. A Postgres connection string contains a password.
 # NOTE: GitHub's web "Add files via upload" does NOT consult this file —
@@ -44,3 +51,4 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
