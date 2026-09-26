@@ -2,10 +2,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { GlassPanel } from '@/components/glass/GlassPanel'
-import { Button } from '@/components/ui/Button'
 import { dataSource } from '@/data'
 import type { PlaceBox } from '@/data/DataSource'
 import { useRegions } from '@/data/hooks'
+import { usePlaceSearch } from '@/features/command/usePlaceSearch'
 import type { Region } from '@shared/contract'
 import { cn } from '@/lib/utils'
 
@@ -32,24 +32,13 @@ export function RegionPicker({
 
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<{ name: string; box: PlaceBox }[]>([])
-  const [busy, setBusy] = useState<'search' | 'import' | null>(null)
+  const [importing, setImporting] = useState(false)
 
-  async function search() {
-    if (query.trim().length < 2) return
-    setBusy('search')
-    setResults([])
-    try {
-      setResults(await dataSource.searchPlaces(query.trim()))
-    } catch (error) {
-      toast.error(String((error as Error).message ?? error))
-    } finally {
-      setBusy(null)
-    }
-  }
+  // Results follow the typing, debounced and cached.
+  const { results, searching, error } = usePlaceSearch(query)
 
   async function importPlace(place: { name: string; box: PlaceBox }) {
-    setBusy('import')
+    setImporting(true)
     try {
       // Nominatim returns the whole administrative area, which for a city is
       // far more than one import should pull from a free shared service.
@@ -63,14 +52,13 @@ export function RegionPicker({
         description:
           'No condition data yet — these stay grey until vehicles report from them.',
       })
-      setResults([])
       setQuery('')
-    } catch (error) {
-      toast.error(String((error as Error).message ?? error), {
+    } catch (cause) {
+      toast.error(String((cause as Error).message ?? cause), {
         duration: 9000,
       })
     } finally {
-      setBusy(null)
+      setImporting(false)
     }
   }
 
@@ -121,28 +109,36 @@ export function RegionPicker({
         <div className="border-hairline flex flex-col gap-2 border-t pt-3">
           <label className="flex flex-col gap-1">
             <span className="eyebrow">Search for a place</span>
-            <div className="flex gap-2">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void search()
-                }}
-                placeholder="Ludhiana, Mohali, Sector 17…"
-                className="border-hairline bg-surface-2 text-text-1 rounded-control h-10 min-w-0 flex-1 border px-2 text-sm"
-              />
-              <Button
-                size="sm"
-                onClick={() => void search()}
-                disabled={busy !== null || query.trim().length < 2}
-              >
-                {busy === 'search' ? '…' : 'Find'}
-              </Button>
-            </div>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Start typing: Ludhiana, Mohali, Sector 17…"
+              autoComplete="off"
+              spellCheck={false}
+              role="combobox"
+              aria-expanded={results.length > 0}
+              aria-controls="place-results"
+              className="border-hairline bg-surface-2 text-text-1 rounded-control h-10 w-full border px-2 text-sm"
+            />
+            <span className="text-text-3 h-4 text-xs">
+              {searching
+                ? 'Searching…'
+                : error
+                  ? error
+                  : query.trim().length > 0 && query.trim().length < 3
+                    ? 'Keep typing…'
+                    : results.length > 0
+                      ? `${results.length} match${results.length === 1 ? '' : 'es'}`
+                      : ''}
+            </span>
           </label>
 
           {results.length > 0 && (
-            <ul className="flex max-h-56 flex-col gap-1 overflow-y-auto">
+            <ul
+              id="place-results"
+              role="listbox"
+              className="flex max-h-56 flex-col gap-1 overflow-y-auto"
+            >
               {results.map((place) => {
                 const area =
                   (place.box.north - place.box.south) *
@@ -152,10 +148,17 @@ export function RegionPicker({
                 const tooLarge = area > 0.25
 
                 return (
-                  <li key={place.name}>
+                  /* Nominatim returns distinct places with identical display
+                     names — two "Mohali, Rehli Tahsil, Sagar" came back in one
+                     response. The box is what actually distinguishes them. */
+                  <li
+                    key={`${place.name}:${place.box.south},${place.box.west}`}
+                    role="option"
+                    aria-selected={false}
+                  >
                     <button
                       type="button"
-                      disabled={busy !== null || tooLarge}
+                      disabled={importing || tooLarge}
                       onClick={() => void importPlace(place)}
                       className={cn(
                         'rounded-control w-full px-2 py-2 text-left text-xs',
