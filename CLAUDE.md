@@ -208,9 +208,11 @@ process).
   in one process and loses everything on restart. Every endpoint is open, and
   `/api/ingest/bumps` — the one an untrusted device posts to — has no device
   token and no rate limit.
-- **The trip screen does not hold the screen awake.** A PWA stops receiving
-  `DeviceMotion` the moment it is backgrounded or the screen locks, so a trip
-  silently stops recording. `navigator.wakeLock` fixes it and is not wired up.
+- **The wake lock is unverified on real hardware.** The trip screen requests
+  `navigator.wakeLock` on start and reports honestly when it does not get it,
+  but Claude's browser refuses the request outright
+  (`NotAllowedError`), so the granted path has never been seen working — the
+  same blind spot as the service worker. Both need a normal browser.
 - The engineer console below 1024px collapses its rails behind a toggle and
   scrolls the KPI bar. It is usable, not designed for that width — the driver
   routes are the phone experience.

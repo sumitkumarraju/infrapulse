@@ -6,6 +6,7 @@ import * as THREE from 'three'
 import { CountUp } from '@/components/data-viz/Metric'
 import { Button } from '@/components/ui/Button'
 import { useBumpDetection } from '@/features/driver/sensors/useBumpDetection'
+import { useWakeLock } from '@/features/driver/sensors/useWakeLock'
 
 /** A live trace of vertical acceleration — the road, drawn as it is driven. */
 function Seismograph({
@@ -129,6 +130,7 @@ function SpeedArc({ kmh }: { kmh: number }) {
 export function Trip() {
   const navigate = useNavigate()
   const { state, start, stop, simulate } = useBumpDetection()
+  const wakeLock = useWakeLock()
   const [flash, setFlash] = useState(false)
   const [chips, setChips] = useState<number[]>([])
   const [finished, setFinished] = useState(false)
@@ -214,6 +216,21 @@ export function Trip() {
           <span className="text-h3">
             {state.running ? 'Recording' : 'Not started'}
           </span>
+          {state.running && (
+            <span
+              className={
+                wakeLock.state === 'active'
+                  ? 'text-text-2 text-xs'
+                  : 'text-health-critical text-xs'
+              }
+            >
+              {wakeLock.state === 'active'
+                ? 'Screen will stay on'
+                : wakeLock.state === 'unsupported'
+                  ? 'Keep the screen on — this phone cannot hold it for you'
+                  : 'Screen may sleep. Recording stops if it does.'}
+            </span>
+          )}
         </div>
         <span className="metric text-metric-sm text-text-2">
           {(state.distanceM / 1000).toFixed(2)} km
@@ -270,10 +287,23 @@ export function Trip() {
             only grants them from inside the gesture.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button size="lg" onClick={() => void start()}>
+            <Button
+              size="lg"
+              onClick={() => {
+                void start()
+                void wakeLock.request()
+              }}
+            >
               Use phone sensors
             </Button>
-            <Button variant="secondary" size="lg" onClick={simulate}>
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => {
+                simulate()
+                void wakeLock.request()
+              }}
+            >
               Simulate drive
             </Button>
           </div>
@@ -292,6 +322,7 @@ export function Trip() {
           variant="destructive"
           onClick={() => {
             stop()
+            void wakeLock.release()
             setFinished(true)
           }}
         >
