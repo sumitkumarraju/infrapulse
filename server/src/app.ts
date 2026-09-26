@@ -6,6 +6,7 @@ import { ZodError } from 'zod'
 import type { LiveEvent } from '@shared/contract'
 import type { InfraPulseService } from './domain/service.js'
 import { ApiError } from './http/errors.js'
+import { ImportError } from './regions/overpass.js'
 import {
   clearSessionCookie,
   currentSession,
@@ -21,6 +22,8 @@ import {
   photoReportSchema,
   photoStatusSchema,
   loginSchema,
+  importRegionSchema,
+  placeSearchSchema,
   projectedQuerySchema,
   reviewEscalationSchema,
   updateWorkOrderSchema,
@@ -96,6 +99,15 @@ export function createApp({
   app.onError((error, c) => {
     if (error instanceof ApiError) {
       return c.json(error.toResponse(), error.status)
+    }
+
+    if (error instanceof ImportError) {
+      // Area too large, nothing mapped there, OpenStreetMap unreachable: all
+      // things the person who asked can act on.
+      return c.json(
+        { error: { code: 'import_failed', message: error.message } },
+        422,
+      )
     }
 
     if (error instanceof ZodError) {
@@ -193,6 +205,9 @@ export function createApp({
   app.use('/api/escalations/*', requireOperator(sessionSecret))
   app.use('/api/escalations', requireOperator(sessionSecret))
   app.use('/api/demo/*', requireOperator(sessionSecret))
+  // Importing a region is an operator action; listing them is not, because the
+  // driver app needs to know which areas exist.
+  app.use('/api/regions/import', requireOperator(sessionSecret))
 
   // Reviewing the report queue is an operator job; submitting one is not, so
   // only the read and the decision are gated.
@@ -305,6 +320,29 @@ export function createApp({
     const body = updateWorkOrderSchema.parse(await c.req.json())
     return c.json(await service.updateWorkOrder(c.req.param('id'), body))
   })
+
+  /* --- Regions -------------------------------------------------------------- */
+
+  app.get('/api/regions', async (c) => c.json(await service.getRegions()))
+
+  app.get('/api/regions/search', async (c) => {
+    const { q } = placeSearchSchema.parse(
+      Object.fromEntries(new URL(c.req.url).searchParams),
+    )
+    return c.json(await service.findPlaces(q))
+  })
+
+  app.post(
+    '/api/regions/import',
+    // An import hits OpenStreetMap's free, shared infrastructure and writes
+    // thousands of rows. Both are reasons not to allow it in a loop.
+    rateLimit({ limit: 5, windowMs: 10 * 60_000 }),
+    async (c) => {
+      const body = importRegionSchema.parse(await c.req.json())
+      const { name, ...box } = body
+      return c.json(await service.importRegion(name, box), 201)
+    },
+  )
 
   /* --- Escalations ---------------------------------------------------------- */
 

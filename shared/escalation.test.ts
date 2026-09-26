@@ -37,6 +37,7 @@ function segment(overrides: Partial<Segment> = {}): Segment {
 function status(overrides: Partial<SegmentStatus> = {}): SegmentStatus {
   return {
     id: 42,
+    surveyed: true,
     score: 28,
     band: 'critical',
     risk30: 0.9,

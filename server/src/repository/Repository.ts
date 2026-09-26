@@ -1,5 +1,6 @@
 import type {
   DailyScore,
+  Region,
   PhotoReport,
   PhotoStatus,
   Segment,
@@ -27,6 +28,23 @@ export interface Repository {
 
   listSegments(): Promise<Segment[]>
   getSegment(id: number): Promise<Segment | null>
+
+  /* --- Regions ------------------------------------------------------------ */
+
+  listRegions(): Promise<Region[]>
+  /** Creates the region, or returns the existing one for the same box. */
+  upsertRegion(region: {
+    name: string
+    south: number
+    west: number
+    north: number
+    east: number
+  }): Promise<Region>
+  /** Bulk insert. Ids are assigned by the store, so callers pass segments without one. */
+  insertSegments(
+    regionId: number,
+    segments: Omit<Segment, 'id'>[],
+  ): Promise<number>
 
   /* --- Condition history ------------------------------------------------ */
 

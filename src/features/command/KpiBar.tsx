@@ -65,6 +65,15 @@ export function KpiBar() {
         </div>
       </Tile>
 
+      {kpis.unsurveyedCount > 0 && (
+        <Tile label="Unsurveyed">
+          <CountUp
+            value={kpis.unsurveyedCount}
+            className="text-metric-lg text-text-3"
+          />
+        </Tile>
+      )}
+
       <Tile label="Critical segments">
         <CountUp
           value={kpis.criticalCount}

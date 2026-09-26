@@ -355,6 +355,8 @@ export function statusFor(
 
   return {
     id: segment.id,
+    // The mock simulates history for every segment, so all of them are.
+    surveyed: true,
     score,
     band: scoreBand(score),
     risk30,
@@ -548,8 +550,8 @@ export function computeKpis(
   workOrders: WorkOrder[],
   bumpsToday: number,
 ): Kpis {
-  const critical = statuses.filter((s) => s.band === 'critical')
-  const watch = statuses.filter((s) => s.band === 'watch')
+  const critical = statuses.filter((s) => s.surveyed && s.band === 'critical')
+  const watch = statuses.filter((s) => s.surveyed && s.band === 'watch')
 
   // A sample keeps the sparkline cheap on 1100 segments without biasing it.
   const sample = [...histories.values()].filter((_, i) => i % 7 === 0)
@@ -560,11 +562,15 @@ export function computeKpis(
     )
   }
 
+  const surveyed = statuses.filter((s) => s.surveyed)
+
   return {
-    cityHealthIndex: Math.round(mean(statuses.map((s) => s.score)) * 10) / 10,
+    cityHealthIndex:
+      Math.round(mean(surveyed.map((s) => s.score)) * 10) / 10 || 0,
     criticalCount: critical.length,
     watchCount: watch.length,
-    goodCount: statuses.length - critical.length - watch.length,
+    goodCount: surveyed.length - critical.length - watch.length,
+    unsurveyedCount: statuses.length - surveyed.length,
     bumpsToday,
     costExposureInr: [...critical, ...watch].reduce(
       (a, s) => a + s.estimatedCostInr,

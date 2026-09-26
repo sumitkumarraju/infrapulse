@@ -31,6 +31,8 @@ import {
   type AuthorityKind,
   type Escalation,
 } from '@shared/escalation'
+import type { Region } from '@shared/contract'
+import type { PlaceBox } from '@/data/DataSource'
 import { useDemoStore } from '@/store/demoStore'
 
 /*
@@ -282,6 +284,46 @@ export class MockDataSource implements DataSource {
       cancelled = true
       unsubscribe?.()
     }
+  }
+
+  /* --- Regions ----------------------------------------------------------- */
+
+  async getRegions(): Promise<Region[]> {
+    const { segments } = await this.load()
+    return [
+      {
+        id: 1,
+        name: 'Chandigarh University, Gharuan',
+        south: 30.7545,
+        west: 76.5593,
+        north: 30.7815,
+        east: 76.5907,
+        createdAt: new Date().toISOString(),
+        segmentCount: segments.length,
+        surveyedCount: segments.length,
+      },
+    ]
+  }
+
+  /*
+   * Importing needs a server: it fetches from OpenStreetMap and writes
+   * thousands of rows that have to survive a refresh. Saying so plainly beats
+   * a button that appears to work and loses everything on reload.
+   */
+  async searchPlaces(): Promise<{ name: string; box: PlaceBox }[]> {
+    throw new Error(
+      'Searching for a place needs the server. Start it and set VITE_API_URL.',
+    )
+  }
+
+  async importRegion(): Promise<{
+    regionId: number
+    name: string
+    segments: number
+  }> {
+    throw new Error(
+      'Importing an area needs the server and a database. Start it and set VITE_API_URL.',
+    )
   }
 
   /* --- Escalation ------------------------------------------------------- */

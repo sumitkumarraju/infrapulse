@@ -90,6 +90,40 @@ export interface StatusInputs {
 /** The full status row the dashboard ranks and filters by. */
 export function buildStatus(inputs: StatusInputs): SegmentStatus {
   const { segment, history } = inputs
+
+  /*
+   * No history means nothing has been measured here — a region imported from
+   * OpenStreetMap five minutes ago has roads and no readings. Falling through
+   * would give it a baseline of 100 and report it as being in perfect
+   * condition, which is a claim the system has no basis for and the worst
+   * direction to be wrong in: it would hide exactly the roads nobody has
+   * driven yet.
+   */
+  if (history.length === 0) {
+    const { costInr, repairType } = estimateCostInr(segment, 100)
+    return {
+      id: segment.id,
+      surveyed: false,
+      score: 100,
+      band: 'good',
+      risk30: 0,
+      risk60: 0,
+      risk90: 0,
+      // Nothing to prioritise until something is known.
+      priority: 0,
+      trend30: 0,
+      estimatedCostInr: costInr,
+      repairType,
+      breakdown: {
+        base: 100,
+        bumpPenalty: 0,
+        roughnessPenalty: 0,
+        photoPenalty: 0,
+      },
+      bumpsLast7Days: inputs.bumpsLast7Days,
+      photoReportCount: inputs.photoReportCount,
+    }
+  }
   const recent = history.slice(-30).map((d) => d.score)
   const { slope } = linearTrend(recent)
   const baseline = recent[recent.length - 1] ?? 100
@@ -116,6 +150,7 @@ export function buildStatus(inputs: StatusInputs): SegmentStatus {
 
   return {
     id: segment.id,
+    surveyed: true,
     score: scored.score,
     band: scoreBand(scored.score),
     risk30,
@@ -146,8 +181,9 @@ export function buildKpis(
   workOrders: WorkOrder[],
   bumpsToday: number,
 ): Kpis {
-  const critical = statuses.filter((s) => s.band === 'critical')
-  const watch = statuses.filter((s) => s.band === 'watch')
+  const critical = statuses.filter((s) => s.surveyed && s.band === 'critical')
+  const watch = statuses.filter((s) => s.surveyed && s.band === 'watch')
+  const surveyed = statuses.filter((s) => s.surveyed)
 
   const sample = [...histories.values()].filter((_, i) => i % 7 === 0)
   const healthTrend: number[] = []
@@ -165,13 +201,14 @@ export function buildKpis(
   return {
     cityHealthIndex:
       Math.round(
-        (statuses.reduce((a, s) => a + s.score, 0) /
-          Math.max(1, statuses.length)) *
+        (surveyed.reduce((a, s) => a + s.score, 0) /
+          Math.max(1, surveyed.length)) *
           10,
       ) / 10,
     criticalCount: critical.length,
     watchCount: watch.length,
-    goodCount: statuses.length - critical.length - watch.length,
+    goodCount: surveyed.length - critical.length - watch.length,
+    unsurveyedCount: statuses.length - surveyed.length,
     bumpsToday,
     costExposureInr: [...critical, ...watch].reduce(
       (a, s) => a + s.estimatedCostInr,

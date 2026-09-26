@@ -12,8 +12,10 @@ import { useDemoMode } from '@/demo/demoState'
 import { ActivityFeed } from '@/features/command/ActivityFeed'
 import { KpiBar } from '@/features/command/KpiBar'
 import { PriorityQueue } from '@/features/command/PriorityQueue'
+import { RegionPicker } from '@/features/command/RegionPicker'
 import { SegmentDrawer } from '@/features/command/SegmentDrawer'
 import { worstPothole } from '@shared/potholes'
+import type { Region } from '@shared/contract'
 import { cn } from '@/lib/utils'
 
 const MAX_PULSES = 3
@@ -29,6 +31,7 @@ export function Command() {
   const [pulses, setPulses] = useState<Pulse[]>([])
   const [showHexagons, setShowHexagons] = useState(false)
   const [railsOpen, setRailsOpen] = useState(false)
+  const [region, setRegion] = useState<Region | null>(null)
   const [flyTo, setFlyTo] = useState<{
     center: [number, number]
     token: number
@@ -176,7 +179,24 @@ export function Command() {
             </div>
           </div>
 
-          <div className="pointer-events-auto ml-auto flex flex-col gap-2">
+          <div className="pointer-events-auto ml-auto flex flex-col items-end gap-2">
+            <div className="hidden lg:block">
+              <RegionPicker
+                selected={region}
+                onSelect={(next) => {
+                  setRegion(next)
+                  // Fly to the middle of the area that was chosen.
+                  flyToken.current += 1
+                  setFlyTo({
+                    center: [
+                      (next.west + next.east) / 2,
+                      (next.south + next.north) / 2,
+                    ],
+                    token: flyToken.current,
+                  })
+                }}
+              />
+            </div>
             <Button
               variant={railsOpen ? 'primary' : 'secondary'}
               size="sm"

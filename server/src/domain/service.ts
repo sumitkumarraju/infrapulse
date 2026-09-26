@@ -22,6 +22,12 @@ import {
 } from '@shared/escalation'
 import { authorities, isDeliverable } from '../escalation/authorities.js'
 import type { Notifier } from '../escalation/Notifier.js'
+import {
+  importRegion as fetchRegion,
+  searchPlace,
+  type BoundingBox,
+  type Place,
+} from '../regions/overpass.js'
 import { buildKpis, buildStatus } from './scoring.js'
 import { buildSpatialIndex, type SpatialIndex } from './geo.js'
 import type { EventBus } from '../live/EventBus.js'
@@ -616,6 +622,40 @@ export class InfraPulseService {
     const updated = await this.repo.updateEscalation(id, patch)
     if (!updated) throw ApiError.notFound(`No escalation ${id}`)
     return updated
+  }
+
+  /* --- Regions ------------------------------------------------------------ */
+
+  async getRegions() {
+    return this.repo.listRegions()
+  }
+
+  async findPlaces(query: string): Promise<Place[]> {
+    return searchPlace(query)
+  }
+
+  /**
+   * Imports a bounding box of roads from OpenStreetMap.
+   *
+   * The segments arrive with geometry and nothing else. No history is
+   * fabricated for them: a road nobody has driven has no condition, and
+   * inventing one would fill the map with confident green over roads the
+   * system knows nothing about. They stay unsurveyed until impacts arrive.
+   */
+  async importRegion(
+    name: string,
+    box: BoundingBox,
+  ): Promise<{ regionId: number; name: string; segments: number }> {
+    const imported = await fetchRegion(box)
+    const region = await this.repo.upsertRegion({ name, ...box })
+    const count = await this.repo.insertSegments(region.id, imported.segments)
+
+    // The spatial index and the status cache both describe a network that has
+    // just changed shape.
+    this.index = null
+    this.invalidate()
+
+    return { regionId: region.id, name: region.name, segments: count }
   }
 
   liveHistory(): LiveEvent[] {

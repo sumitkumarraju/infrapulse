@@ -253,6 +253,9 @@ export function CityMap({
     if (!showPotholes) return []
     const all: Pothole[] = []
     for (const segment of segments) {
+      // Defects are derived from a condition score. Without one there is
+      // nothing to derive them from.
+      if (!segment.status.surveyed) continue
       const score = scoreOverride?.get(segment.id) ?? segment.status.score
       all.push(...potholesFor(segment, score))
     }
@@ -310,6 +313,8 @@ export function CityMap({
           data: segments,
           getPath: (d) => d.path,
           getColor: (d) => {
+            // Nothing to glow about on a road with no readings.
+            if (!d.status.surveyed) return [0, 0, 0, 0]
             const score = scoreOf(d)
             const alpha = score < 40 ? 80 : score < 70 ? 55 : 35
             return scoreColorRgba(
@@ -338,10 +343,22 @@ export function CityMap({
         getColor: (d) => {
           const highlighted = d.id === highlightId || d.id === selectedId
           const faded = dimmed && !fundedIds?.has(d.id)
-          return scoreColorRgba(
-            scoreOf(d),
-            faded ? 60 : highlighted ? 255 : 220,
-          )
+          const alpha = faded ? 60 : highlighted ? 255 : 220
+
+          /*
+           * A road nobody has driven has no condition.
+           *
+           * Falling through to the ramp would paint a freshly imported region
+           * in confident green — every unmeasured road in the country reported
+           * as being in good repair. That is the one direction this product
+           * cannot afford to be wrong in, so unsurveyed roads are drawn as what
+           * they are: known geometry, unknown state.
+           */
+          if (!d.status.surveyed) {
+            return [95, 110, 140, Math.round(alpha * 0.7)]
+          }
+
+          return scoreColorRgba(scoreOf(d), alpha)
         },
         getWidth: (d) =>
           BAND_WIDTH[d.status.band] +

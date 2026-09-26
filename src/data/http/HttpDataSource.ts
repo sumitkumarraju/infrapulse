@@ -1,5 +1,7 @@
 import type { DataSource } from '@/data/DataSource'
 import type { Escalation } from '@shared/escalation'
+import type { Region } from '@shared/contract'
+import type { PlaceBox } from '@/data/DataSource'
 import type {
   DailyScore,
   ForecastPoint,
@@ -104,6 +106,24 @@ export class HttpDataSource implements DataSource {
     return this.request('/api/work-orders', {
       method: 'POST',
       body: JSON.stringify({ segmentIds }),
+    })
+  }
+
+  getRegions(): Promise<Region[]> {
+    return this.request('/api/regions')
+  }
+
+  searchPlaces(query: string): Promise<{ name: string; box: PlaceBox }[]> {
+    return this.request(`/api/regions/search?q=${encodeURIComponent(query)}`)
+  }
+
+  importRegion(
+    name: string,
+    box: PlaceBox,
+  ): Promise<{ regionId: number; name: string; segments: number }> {
+    return this.request('/api/regions/import', {
+      method: 'POST',
+      body: JSON.stringify({ name, ...box }),
     })
   }
 

@@ -26,6 +26,7 @@ import '../src/env.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const SCHEMA = resolve(HERE, '../db/schema.sql')
+const MIGRATIONS = resolve(HERE, '../db/migrations')
 const SEGMENTS = resolve(HERE, '../../public/data/segments.geojson')
 
 function connectionString(): string {
@@ -94,21 +95,73 @@ async function enablePostgis(db: pg.Pool) {
 
 async function migrate() {
   const db = pool()
-  const sql = await readFile(SCHEMA, 'utf-8')
-
   await enablePostgis(db)
 
-  console.log('Applying db/schema.sql...')
   try {
-    await db.query(sql)
-    console.log('Schema applied.')
-  } catch (error) {
-    const message = (error as Error).message
-    if (message.includes('already exists')) {
-      console.error('Something already exists — the schema is not re-runnable.')
-      console.error('Drop the objects first, or apply only the new statements.')
+    // The baseline, applied only to an empty database. After that it is
+    // history: changes go in db/migrations as numbered files.
+    const { rows } = await db.query<{ exists: boolean }>(
+      `SELECT to_regclass('public.segments') IS NOT NULL AS exists`,
+    )
+
+    if (!rows[0].exists) {
+      console.log('Applying db/schema.sql (baseline)...')
+      await db.query(await readFile(SCHEMA, 'utf-8'))
+      console.log('Baseline applied.')
+    } else {
+      console.log('Baseline already present.')
     }
-    throw error
+
+    await db.query(
+      `CREATE TABLE IF NOT EXISTS schema_migrations (
+         name text PRIMARY KEY,
+         applied_at timestamptz NOT NULL DEFAULT now()
+       )`,
+    )
+
+    const { readdir } = await import('node:fs/promises')
+    let files: string[] = []
+    try {
+      files = (await readdir(MIGRATIONS))
+        .filter((f) => f.endsWith('.sql'))
+        .sort()
+    } catch {
+      files = []
+    }
+
+    const applied = new Set(
+      (
+        await db.query<{ name: string }>('SELECT name FROM schema_migrations')
+      ).rows.map((r) => r.name),
+    )
+
+    let count = 0
+    for (const file of files) {
+      if (applied.has(file)) continue
+
+      // Each migration is one transaction: a half-applied schema change is
+      // far worse to recover from than one that did not run.
+      const client = await db.connect()
+      try {
+        await client.query('BEGIN')
+        await client.query(await readFile(resolve(MIGRATIONS, file), 'utf-8'))
+        await client.query('INSERT INTO schema_migrations (name) VALUES ($1)', [
+          file,
+        ])
+        await client.query('COMMIT')
+        console.log(`  applied ${file}`)
+        count++
+      } catch (error) {
+        await client.query('ROLLBACK')
+        throw new Error(`${file} failed: ${(error as Error).message}`)
+      } finally {
+        client.release()
+      }
+    }
+
+    console.log(
+      count === 0 ? 'No new migrations.' : `${count} migration(s) applied.`,
+    )
   } finally {
     await db.end()
   }

@@ -2,6 +2,20 @@
  * exactly these types; nothing in the app depends on where they came from. */
 
 export type RoadClass = 'arterial' | 'collector' | 'local'
+
+/** An imported area. The system covers a set of these, not one fixed campus. */
+export interface Region {
+  id: number
+  name: string
+  south: number
+  west: number
+  north: number
+  east: number
+  createdAt: string
+  segmentCount: number
+  /** How many of those segments have any readings yet. */
+  surveyedCount: number
+}
 export type HealthBand = 'good' | 'watch' | 'critical'
 
 export interface Segment {
@@ -30,6 +44,16 @@ export interface ScoreBreakdown {
 
 export interface SegmentStatus {
   id: number
+  /**
+   * Whether anything is actually known about this road.
+   *
+   * A freshly imported region has geometry and no readings. Reporting those
+   * segments as score 100 would claim every unmeasured road in the country is
+   * in perfect condition, which is both false and the most dangerous direction
+   * to be wrong in. Unsurveyed segments are drawn grey, excluded from the city
+   * health index, and given no priority — there is nothing to prioritise.
+   */
+  surveyed: boolean
   score: number
   band: HealthBand
   /** Probability the score drops below 30 within N days, 0-1. */
@@ -100,10 +124,13 @@ export interface WorkOrder {
 }
 
 export interface Kpis {
+  /** Averaged over surveyed segments only. */
   cityHealthIndex: number
   criticalCount: number
   watchCount: number
   goodCount: number
+  /** Imported, but no readings yet. */
+  unsurveyedCount: number
   bumpsToday: number
   costExposureInr: number
   openWorkOrders: number

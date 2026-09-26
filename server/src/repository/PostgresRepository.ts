@@ -1,6 +1,7 @@
 import pg from 'pg'
 import type {
   DailyScore,
+  Region,
   PhotoReport,
   PhotoStatus,
   Segment,
@@ -121,6 +122,141 @@ export class PostgresRepository implements Repository {
       [id],
     )
     return rows[0] ? toSegment(rows[0]) : null
+  }
+
+  /* --- Regions -------------------------------------------------------------- */
+
+  async listRegions(): Promise<Region[]> {
+    // Counted in the query rather than by loading segments: a region can hold
+    // tens of thousands of them.
+    const { rows } = await this.pool.query(
+      `SELECT r.*,
+              count(s.id)::int AS segment_count,
+              count(h.segment_id)::int AS surveyed_count
+       FROM regions r
+       LEFT JOIN segments s ON s.region_id = r.id
+       LEFT JOIN LATERAL (
+         SELECT 1 AS segment_id
+         FROM segment_daily_scores d
+         WHERE d.segment_id = s.id
+         LIMIT 1
+       ) h ON true
+       GROUP BY r.id
+       ORDER BY r.created_at`,
+    )
+
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      south: num(r.south),
+      west: num(r.west),
+      north: num(r.north),
+      east: num(r.east),
+      createdAt: (r.created_at as Date).toISOString(),
+      segmentCount: num(r.segment_count),
+      surveyedCount: num(r.surveyed_count),
+    }))
+  }
+
+  async upsertRegion(region: {
+    name: string
+    south: number
+    west: number
+    north: number
+    east: number
+  }): Promise<Region> {
+    const { rows } = await this.pool.query(
+      `INSERT INTO regions (name, south, west, north, east)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (south, west, north, east)
+       DO UPDATE SET name = EXCLUDED.name
+       RETURNING *`,
+      [region.name, region.south, region.west, region.north, region.east],
+    )
+
+    const row = rows[0]
+    return {
+      id: row.id,
+      name: row.name,
+      south: num(row.south),
+      west: num(row.west),
+      north: num(row.north),
+      east: num(row.east),
+      createdAt: (row.created_at as Date).toISOString(),
+      segmentCount: 0,
+      surveyedCount: 0,
+    }
+  }
+
+  async insertSegments(
+    regionId: number,
+    segments: Omit<Segment, 'id'>[],
+  ): Promise<number> {
+    if (segments.length === 0) return 0
+
+    const client = await this.pool.connect()
+    try {
+      await client.query('BEGIN')
+
+      // Re-importing replaces the area rather than doubling it. Scores and
+      // observations cascade away with the segments, which is correct: they
+      // described geometry that no longer exists under those ids.
+      await client.query('DELETE FROM segments WHERE region_id = $1', [
+        regionId,
+      ])
+
+      // Batched. One statement per segment would be thousands of round trips
+      // against a pooler on the other side of the country.
+      const BATCH = 250
+      for (let start = 0; start < segments.length; start += BATCH) {
+        const slice = segments.slice(start, start + BATCH)
+        const values: unknown[] = []
+        const tuples: string[] = []
+
+        for (const segment of slice) {
+          const base = values.length
+          const line = `LINESTRING(${segment.path
+            .map(([lon, lat]) => `${lon} ${lat}`)
+            .join(', ')})`
+
+          values.push(
+            regionId,
+            segment.name,
+            segment.highway,
+            segment.roadClass,
+            segment.lengthM,
+            segment.nearSensitive,
+            segment.busRoute,
+            line,
+            segment.center[0],
+            segment.center[1],
+          )
+
+          tuples.push(
+            `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}::road_class,` +
+              ` $${base + 5}, $${base + 6}, $${base + 7},` +
+              ` ST_GeomFromText($${base + 8}, 4326),` +
+              ` ST_SetSRID(ST_MakePoint($${base + 9}, $${base + 10}), 4326))`,
+          )
+        }
+
+        await client.query(
+          `INSERT INTO segments
+             (region_id, name, highway, road_class, length_m,
+              near_sensitive, bus_route, geom, center)
+           VALUES ${tuples.join(', ')}`,
+          values,
+        )
+      }
+
+      await client.query('COMMIT')
+      return segments.length
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
   }
 
   /* --- Condition history -------------------------------------------------- */

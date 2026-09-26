@@ -60,6 +60,14 @@ export function useWorkOrders() {
   })
 }
 
+export function useRegions() {
+  return useQuery({
+    queryKey: qk.regions,
+    queryFn: () => dataSource.getRegions(),
+    staleTime: 60_000,
+  })
+}
+
 export function useEscalations() {
   return useQuery({
     queryKey: qk.escalations,

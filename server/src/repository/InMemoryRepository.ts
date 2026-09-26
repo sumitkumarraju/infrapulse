@@ -15,6 +15,7 @@ import type {
   Segment,
   WorkOrder,
 } from '@shared/contract'
+import type { Region } from '@shared/contract'
 import type { Escalation } from '@shared/escalation'
 import type { BumpObservation, Repository } from './Repository.js'
 
@@ -87,6 +88,45 @@ export class InMemoryRepository implements Repository {
     )
 
     this.workOrders = generateWorkOrders(this.segments, statuses)
+  }
+
+  /*
+   * Regions exist here so the API behaves the same either way, but importing
+   * one is a database operation: it writes thousands of rows that have to
+   * outlive the process. Without persistence an import would vanish on
+   * restart, which is worse than declining it.
+   */
+  async listRegions(): Promise<Region[]> {
+    await this.init()
+    const surveyed = this.segments.filter(
+      (s) => (this.histories.get(s.id)?.length ?? 0) > 0,
+    ).length
+
+    return [
+      {
+        id: 1,
+        name: 'Chandigarh University, Gharuan',
+        south: 30.7545,
+        west: 76.5593,
+        north: 30.7815,
+        east: 76.5907,
+        createdAt: new Date().toISOString(),
+        segmentCount: this.segments.length,
+        surveyedCount: surveyed,
+      },
+    ]
+  }
+
+  async upsertRegion(): Promise<Region> {
+    throw new Error(
+      'Importing a region needs a database: set DATABASE_URL and run the migrations.',
+    )
+  }
+
+  async insertSegments(): Promise<number> {
+    throw new Error(
+      'Importing a region needs a database: set DATABASE_URL and run the migrations.',
+    )
   }
 
   async listSegments(): Promise<Segment[]> {

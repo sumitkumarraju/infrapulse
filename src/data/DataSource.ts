@@ -1,4 +1,5 @@
 import type { Escalation } from '@shared/escalation'
+import type { Region } from '@shared/contract'
 import type {
   DailyScore,
   ForecastPoint,
@@ -31,6 +32,16 @@ export interface DataSource {
   getKpis(): Promise<Kpis>
   /** Returns an unsubscribe function. */
   subscribeLive(cb: (e: LiveEvent) => void): () => void
+  /* --- Regions ---------------------------------------------------------- */
+
+  getRegions(): Promise<Region[]>
+  /** Place name to candidate bounding boxes. */
+  searchPlaces(query: string): Promise<{ name: string; box: PlaceBox }[]>
+  importRegion(
+    name: string,
+    box: PlaceBox,
+  ): Promise<{ regionId: number; name: string; segments: number }>
+
   /* --- Escalation to the road-owning authority ------------------------- */
 
   getEscalations(): Promise<Escalation[]>
@@ -50,6 +61,13 @@ export interface DataSource {
   resetDemo(): Promise<void>
 }
 
+export interface PlaceBox {
+  south: number
+  west: number
+  north: number
+  east: number
+}
+
 /** Query keys, kept in one place so invalidation cannot drift. */
 export const qk = {
   segments: ['segments'] as const,
@@ -60,5 +78,6 @@ export const qk = {
   workOrders: ['work-orders'] as const,
   kpis: ['kpis'] as const,
   escalations: ['escalations'] as const,
+  regions: ['regions'] as const,
   projected: (offset: number) => ['projected', offset] as const,
 }
