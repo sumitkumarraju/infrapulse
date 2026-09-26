@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { midpointOf } from '@shared/simulate'
 import {
   BumpDetector,
   DEFAULT_DETECTOR_CONFIG,
@@ -278,5 +279,40 @@ describe('replaying a recorded drive', () => {
     })
 
     expect(lenient.impacts.length).toBeGreaterThan(strict.impacts.length)
+  })
+})
+
+describe('segment midpoints', () => {
+  it('returns the point half way along, not the last vertex', () => {
+    // The bug this replaced: path[floor(length / 2)] on a two-point line is
+    // its end, which is the next segment's start — so a marker sat on the
+    // boundary and an impact there matched either neighbour.
+    expect(
+      midpointOf([
+        [0, 0],
+        [10, 0],
+      ]),
+    ).toEqual([5, 0])
+  })
+
+  it('measures by length, not by vertex count', () => {
+    // Three vertices, but nearly all the length is in the first span.
+    const [x] = midpointOf([
+      [0, 0],
+      [100, 0],
+      [101, 0],
+    ])
+    expect(x).toBeCloseTo(50.5, 5)
+  })
+
+  it('survives degenerate geometry', () => {
+    expect(midpointOf([])).toEqual([0, 0])
+    expect(midpointOf([[3, 4]])).toEqual([3, 4])
+    expect(
+      midpointOf([
+        [3, 4],
+        [3, 4],
+      ]),
+    ).toEqual([3, 4])
   })
 })

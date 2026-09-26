@@ -101,6 +101,46 @@ interface RawFeature {
   }
 }
 
+/**
+ * The point half way along a polyline, measured by length.
+ *
+ * `path[floor(length / 2)]` is not that. For a straight two-point chunk it
+ * returns the *end* — which is the next segment's start, so a marker sits on
+ * the boundary and an impact there is as close to one segment as the other.
+ * PostGIS reports both at 0.00m from such a point. Up to 25m of error on
+ * something a crew is dispatched to.
+ */
+export function midpointOf(path: [number, number][]): [number, number] {
+  if (path.length === 0) return [0, 0]
+  if (path.length === 1) return path[0]
+
+  const spans: number[] = []
+  let total = 0
+  for (let i = 1; i < path.length; i++) {
+    // Planar is fine over 50 metres; the projection error is millimetres.
+    const d = Math.hypot(
+      path[i][0] - path[i - 1][0],
+      path[i][1] - path[i - 1][1],
+    )
+    spans.push(d)
+    total += d
+  }
+  if (total === 0) return path[0]
+
+  let remaining = total / 2
+  for (let i = 0; i < spans.length; i++) {
+    if (remaining <= spans[i]) {
+      const t = spans[i] === 0 ? 0 : remaining / spans[i]
+      return [
+        path[i][0] + (path[i + 1][0] - path[i][0]) * t,
+        path[i][1] + (path[i + 1][1] - path[i][1]) * t,
+      ]
+    }
+    remaining -= spans[i]
+  }
+  return path[path.length - 1]
+}
+
 export function segmentsFromGeoJson(json: {
   features: RawFeature[]
 }): Segment[] {
@@ -115,7 +155,7 @@ export function segmentsFromGeoJson(json: {
       nearSensitive: f.properties.nearSensitive,
       busRoute: f.properties.busRoute,
       path,
-      center: path[Math.floor(path.length / 2)],
+      center: midpointOf(path),
     }
   })
 }
