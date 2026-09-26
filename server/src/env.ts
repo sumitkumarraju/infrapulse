@@ -1,6 +1,36 @@
 /* Configuration, read once at startup so a missing value fails immediately
  * rather than on the first request that happens to need it. */
 
+import { existsSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+/*
+ * Load .env before anything reads process.env.
+ *
+ * Node does not do this on its own, so without it a correctly filled-in .env
+ * changes nothing and the server quietly keeps using the in-memory store —
+ * the most confusing possible failure, because everything still works.
+ *
+ * The repository root is checked first, since that is where .env.example sits.
+ * Real environment variables always win: on a host, the platform sets them and
+ * there is no file.
+ */
+const HERE = dirname(fileURLToPath(import.meta.url))
+for (const candidate of [
+  resolve(HERE, '../../.env'),
+  resolve(HERE, '../.env'),
+]) {
+  if (!existsSync(candidate)) continue
+  try {
+    process.loadEnvFile(candidate)
+    console.log(`Loaded configuration from ${candidate}`)
+  } catch (error) {
+    console.warn(`Could not read ${candidate}: ${(error as Error).message}`)
+  }
+  break
+}
+
 function list(value: string | undefined): string[] {
   return (value ?? '')
     .split(',')

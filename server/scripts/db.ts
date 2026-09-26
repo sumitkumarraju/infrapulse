@@ -21,6 +21,8 @@ import {
   statusFor,
 } from '@shared/simulate'
 import { PostgresRepository } from '../src/repository/PostgresRepository.js'
+// Imported for its side effect: it loads .env before DATABASE_URL is read.
+import '../src/env.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const SCHEMA = resolve(HERE, '../db/schema.sql')
