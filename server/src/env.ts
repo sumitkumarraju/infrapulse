@@ -65,6 +65,22 @@ export const env = {
    * index.ts refuses to start in production without both.
    */
   operatorPassword: process.env.OPERATOR_PASSWORD ?? 'infrapulse-dev',
+
+  /**
+   * Whether the engineer routes demand a sign-in.
+   *
+   * Off by default when running locally, because a password prompt between
+   * `npm run dev` and the map is friction with nothing behind it — the server
+   * is on localhost and so is whoever reached it. On by default in production,
+   * where "anyone who can reach the server" means anyone at all.
+   *
+   * REQUIRE_LOGIN overrides both directions, so a local instance exposed
+   * through a tunnel can be protected without pretending to be production.
+   */
+  requireLogin:
+    process.env.REQUIRE_LOGIN === 'true' ||
+    (process.env.REQUIRE_LOGIN !== 'false' &&
+      (process.env.NODE_ENV ?? 'development') === 'production'),
   sessionSecret:
     process.env.SESSION_SECRET ?? 'infrapulse-development-session-secret',
 

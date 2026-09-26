@@ -272,6 +272,9 @@ process).
   is written and `server/db/schema.sql` applies as-is to any Postgres with
   PostGIS, but **it has never been run against a real database** — `npm run
 db:check` in `server/` is what proves it, and needs a connection string.
+- **The engineer routes are open when running locally.** `REQUIRE_LOGIN`
+  defaults off in development and on in production. Anything reachable beyond
+  localhost — a tunnel, a deployment — needs it set to `true`.
 - **One shared operator role.** The engineer routes now require a sign-in and
   ingest requires a device token, but everyone who signs in is the same
   operator: no per-person audit trail, and revoking access means rotating the

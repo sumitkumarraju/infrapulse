@@ -63,7 +63,14 @@ shown to a person. Validation failures add a `fields` array.
 
 Two gates, for two different callers.
 
-**Engineer routes require a session.** Segments, condition, history, forecasts,
+**Engineer routes require a session — in production.** Locally the gate is off
+by default, because a password prompt between `npm run dev` and the map
+protects nothing: the server is on localhost and so is whoever reached it. The
+client asks `/api/auth/me`, which reports `required`, and skips the sign-in
+screen rather than showing a form that would accept anything.
+
+`REQUIRE_LOGIN` overrides it either way, which is what a local instance behind
+a tunnel needs — that one is reachable by anyone with the URL. Segments, condition, history, forecasts,
 work orders, escalations and the report review queue are all behind a login —
 anyone who can reach the server was previously able to read every road's
 condition and move work orders around. The rule is applied to whole path

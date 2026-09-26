@@ -33,8 +33,13 @@ export async function checkSession(): Promise<boolean> {
   try {
     const response = await call('/api/auth/me')
     if (!response.ok) return false
-    const body = (await response.json()) as { signedIn: boolean }
-    return body.signedIn
+    // `required: false` means the server is running open — usually local
+    // development. Showing a password box there would be theatre.
+    const body = (await response.json()) as {
+      signedIn: boolean
+      required?: boolean
+    }
+    return body.required === false || body.signedIn
   } catch {
     // The server being unreachable is not the same as being signed out, but
     // from the dashboard's point of view there is nothing to show either way.

@@ -30,6 +30,9 @@ function build() {
     enableDemoRoutes: true,
     quiet: true,
     operatorPassword: OPERATOR_PASSWORD,
+    // The gate is off by default in development; these tests are about the
+    // gate, so they turn it on.
+    requireLogin: true,
   })
 
   let cookie: string | null = null
@@ -524,10 +527,11 @@ describe('the engineer routes are not public', () => {
     const { anonymous } = build()
 
     expect(
-      await json<{ signedIn: boolean }>(anonymous, '/api/auth/me'),
-    ).toEqual({
-      signedIn: false,
-    })
+      await json<{ signedIn: boolean; required: boolean }>(
+        anonymous,
+        '/api/auth/me',
+      ),
+    ).toMatchObject({ required: true, signedIn: false })
 
     const login = await anonymous.request(
       '/api/auth/login',
@@ -541,7 +545,7 @@ describe('the engineer routes are not public', () => {
     const me = await anonymous.request('/api/auth/me', {
       headers: { Cookie: cookie },
     })
-    expect(await me.json()).toEqual({ signedIn: true })
+    expect(await me.json()).toMatchObject({ signedIn: true })
 
     const segments = await anonymous.request('/api/segments', {
       headers: { Cookie: cookie },
@@ -575,6 +579,31 @@ describe('the engineer routes are not public', () => {
       headers: { Cookie: tampered },
     })
     expect(response.status).toBe(401)
+  })
+
+  it('can be turned off, and then says so rather than asking', async () => {
+    /*
+     * Local development runs open: a password prompt between `npm run dev` and
+     * the map protects nothing, since the server is on localhost and so is
+     * whoever reached it. The client needs to be told, or it shows a form that
+     * would accept anything.
+     */
+    const repo = new InMemoryRepository()
+    const bus = new EventBus()
+    const service = new InfraPulseService(repo, bus)
+    const open = createApp({ service, quiet: true, requireLogin: false })
+
+    const me = await json<{ required: boolean; signedIn: boolean }>(
+      open,
+      '/api/auth/me',
+    )
+    expect(me).toMatchObject({ required: false, signedIn: true })
+
+    // And the routes really are reachable, not just reported as reachable.
+    for (const path of ['/api/segments/status', '/api/work-orders']) {
+      const response = await open.request(path)
+      expect(response.status, path).toBe(200)
+    }
   })
 
   it('still lets a citizen report a pothole without signing in', async () => {

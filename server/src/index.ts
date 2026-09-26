@@ -35,6 +35,7 @@ const app = createApp({
   deviceTokenSecret: env.deviceTokenSecret,
   operatorPassword: env.operatorPassword,
   sessionSecret: env.sessionSecret,
+  requireLogin: env.requireLogin,
   // A cookie marked Secure is dropped over plain http, which would make local
   // development impossible to sign in to.
   secureCookies: isProduction,
@@ -42,6 +43,7 @@ const app = createApp({
 
 if (
   isProduction &&
+  env.requireLogin &&
   (env.operatorPassword === 'infrapulse-dev' ||
     env.sessionSecret.startsWith('infrapulse-development'))
 ) {
@@ -89,7 +91,11 @@ serve({ fetch: app.fetch, port: env.port }, (info) => {
   console.log(`  cors:     ${env.corsOrigins.join(', ') || 'same-origin only'}`)
   console.log(`  demo:     ${env.enableDemoRoutes ? 'enabled' : 'disabled'}`)
   console.log(
-    `  operator: password ${env.operatorPassword === 'infrapulse-dev' ? 'is the DEVELOPMENT default' : 'configured'}`,
+    `  operator: ${
+      env.requireLogin
+        ? `sign-in required (password ${env.operatorPassword === 'infrapulse-dev' ? 'is the DEVELOPMENT default' : 'configured'})`
+        : 'OPEN — no sign-in. Set REQUIRE_LOGIN=true to protect it.'
+    }`,
   )
   console.log(
     `  ingest:   device token required${

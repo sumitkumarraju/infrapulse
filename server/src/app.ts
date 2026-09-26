@@ -1,4 +1,4 @@
-import { Hono } from 'hono'
+import { Hono, type MiddlewareHandler } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { streamSSE } from 'hono/streaming'
@@ -43,6 +43,8 @@ export interface AppOptions {
   sessionSecret?: string
   /** Set on the session cookie. False only for plain-http local development. */
   secureCookies?: boolean
+  /** When false the engineer routes are open. See env.requireLogin. */
+  requireLogin?: boolean
   quiet?: boolean
 }
 
@@ -72,8 +74,16 @@ export function createApp({
   operatorPassword = 'infrapulse-dev',
   sessionSecret = 'infrapulse-development-session-secret',
   secureCookies = false,
+  requireLogin = true,
   quiet = false,
 }: AppOptions) {
+  /*
+   * One place decides whether the gate is real, so a route cannot accidentally
+   * be protected in one configuration and open in another.
+   */
+  const operatorGate: MiddlewareHandler = requireLogin
+    ? requireOperator(sessionSecret)
+    : async (_c, next) => next()
   const app = new Hono()
 
   if (!quiet) app.use('*', logger())
@@ -187,8 +197,13 @@ export function createApp({
 
   // Lets the client decide whether to show the dashboard or the sign-in form
   // without having to provoke a 401 first.
+  // `required` lets the client skip the sign-in screen entirely rather than
+  // showing a form that would accept anything.
   app.get('/api/auth/me', (c) =>
-    c.json({ signedIn: currentSession(c, sessionSecret) !== null }),
+    c.json({
+      required: requireLogin,
+      signedIn: !requireLogin || currentSession(c, sessionSecret) !== null,
+    }),
   )
 
   /* --- Everything below is for signed-in operators --------------------------
@@ -198,26 +213,26 @@ export function createApp({
    * the citizen and device surfaces: health, auth, device registration, ingest,
    * submitting a photo report, and the city-wide aggregate on the landing page.
    */
-  app.use('/api/segments/*', requireOperator(sessionSecret))
-  app.use('/api/segments', requireOperator(sessionSecret))
-  app.use('/api/work-orders/*', requireOperator(sessionSecret))
-  app.use('/api/work-orders', requireOperator(sessionSecret))
-  app.use('/api/escalations/*', requireOperator(sessionSecret))
-  app.use('/api/escalations', requireOperator(sessionSecret))
-  app.use('/api/demo/*', requireOperator(sessionSecret))
+  app.use('/api/segments/*', operatorGate)
+  app.use('/api/segments', operatorGate)
+  app.use('/api/work-orders/*', operatorGate)
+  app.use('/api/work-orders', operatorGate)
+  app.use('/api/escalations/*', operatorGate)
+  app.use('/api/escalations', operatorGate)
+  app.use('/api/demo/*', operatorGate)
   // Importing a region is an operator action; listing them is not, because the
   // driver app needs to know which areas exist.
-  app.use('/api/regions/import', requireOperator(sessionSecret))
+  app.use('/api/regions/import', operatorGate)
 
   // Reviewing the report queue is an operator job; submitting one is not, so
   // only the read and the decision are gated.
   app.use('/api/reports/*', async (c, next) => {
     if (c.req.method === 'POST') return next()
-    return requireOperator(sessionSecret)(c, next)
+    return operatorGate(c, next)
   })
   app.use('/api/reports', async (c, next) => {
     if (c.req.method === 'POST') return next()
-    return requireOperator(sessionSecret)(c, next)
+    return operatorGate(c, next)
   })
 
   /* --- Road network and condition ---------------------------------------- */
