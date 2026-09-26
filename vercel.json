@@ -3,13 +3,7 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "cleanUrls": true,
-  "trailingSlash": false,
   "rewrites": [
-    {
-      "source": "/((?!assets/|maplibre/|icons/|data/|mock-photos/|favicon.svg|sw.js|workbox-.*\\.js|manifest.webmanifest|registerSW.js).*)/",
-      "destination": "/index.html"
-    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
