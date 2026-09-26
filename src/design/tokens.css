@@ -43,7 +43,9 @@
     'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
-  --text-display: 4rem; /* 64 */
+  /* 64px is right on a desktop and eats a 390px screen whole. Scales with the
+     viewport and stops at the design's value. */
+  --text-display: clamp(2.125rem, 8.5vw, 4rem);
   --text-display--line-height: 1;
   --text-display--font-weight: 600;
   --text-display--letter-spacing: -0.03em;

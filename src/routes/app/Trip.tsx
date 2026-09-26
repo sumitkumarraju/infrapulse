@@ -276,61 +276,70 @@ export function Trip() {
         </span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4">
-        <SpeedArc kmh={kmh} />
+      {/* Before the trip starts these are three empty boxes filling the screen
+          and pushing the only button that matters below the fold. Instruments
+          are for during the drive; setup is for before it. */}
+      {state.running && (
+        <>
+          <div className="flex flex-wrap items-center gap-4">
+            <SpeedArc kmh={kmh} />
 
-        <div className="flex flex-1 flex-col gap-2">
-          <span className="eyebrow">Bumps this trip</span>
-          <CountUp
-            value={state.bumps.length}
-            className="text-metric-lg text-health-critical"
-          />
+            <div className="flex flex-1 flex-col gap-2">
+              <span className="eyebrow">Bumps this trip</span>
+              <CountUp
+                value={state.bumps.length}
+                className="text-metric-lg text-health-critical"
+              />
 
-          <div className="rounded-card border-hairline bg-surface-1 h-16 overflow-hidden border">
-            <Canvas camera={{ position: [0, 1.6, 2.6], fov: 40 }}>
-              <ambientLight intensity={0.7} />
-              <directionalLight position={[2, 4, 2]} intensity={1.2} />
-              <Cube beta={state.heading.beta} gamma={state.heading.gamma} />
-            </Canvas>
+              <div className="rounded-card border-hairline bg-surface-1 h-16 overflow-hidden border">
+                <Canvas camera={{ position: [0, 1.6, 2.6], fov: 40 }}>
+                  <ambientLight intensity={0.7} />
+                  <directionalLight position={[2, 4, 2]} intensity={1.2} />
+                  <Cube beta={state.heading.beta} gamma={state.heading.gamma} />
+                </Canvas>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <div
-        className={`rounded-card bg-surface-1 relative overflow-hidden border ${
-          flash ? 'border-health-critical' : 'border-hairline'
-        }`}
-      >
-        <Seismograph history={state.history} flash={flash} />
+          <div
+            className={`rounded-card bg-surface-1 relative overflow-hidden border ${
+              flash ? 'border-health-critical' : 'border-hairline'
+            }`}
+          >
+            <Seismograph history={state.history} flash={flash} />
 
-        <AnimatePresence>
-          {chips.map((chip) => (
-            <motion.span
-              key={chip}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: -28 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.9 }}
-              className="metric bg-health-critical text-metric-sm absolute right-4 bottom-2 rounded-full px-2 py-0.5 text-white"
-            >
-              +1 bump
-            </motion.span>
-          ))}
-        </AnimatePresence>
-      </div>
+            <AnimatePresence>
+              {chips.map((chip) => (
+                <motion.span
+                  key={chip}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: -28 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.9 }}
+                  className="metric bg-health-critical text-metric-sm absolute right-4 bottom-2 rounded-full px-2 py-0.5 text-white"
+                >
+                  +1 bump
+                </motion.span>
+              ))}
+            </AnimatePresence>
+          </div>
+        </>
+      )}
 
       {!state.running && (
         <div className="rounded-card border-hairline bg-surface-1 flex flex-col gap-3 border p-4">
+          <h2 className="text-h3">Ready to drive</h2>
           <p className="text-text-2 text-sm">
-            Motion and location permissions are requested on the tap below — iOS
-            only grants them from inside the gesture.
+            Mount the phone first — a loose phone reports its own rattling
+            rather than the road. Motion and location are requested on the tap
+            below; iOS only grants them from inside the gesture.
           </p>
           <label className="border-hairline rounded-card flex items-start gap-3 border p-3">
             <input
               type="checkbox"
               checked={wantRecording}
               onChange={(e) => setWantRecording(e.target.checked)}
-              className="mt-1 size-5 accent-[var(--color-accent)]"
+              className="mt-0.5 size-6 shrink-0 accent-[var(--color-accent)]"
             />
             <span className="flex flex-col gap-0.5">
               <span className="text-sm">Record raw sensor trace</span>
@@ -342,9 +351,10 @@ export function Trip() {
             </span>
           </label>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2">
             <Button
               size="lg"
+              className="w-full"
               onClick={() => {
                 void start()
                 void wakeLock.request()
@@ -356,6 +366,7 @@ export function Trip() {
             <Button
               variant="secondary"
               size="lg"
+              className="w-full"
               onClick={() => {
                 simulate()
                 void wakeLock.request()

@@ -327,11 +327,23 @@ export function Landing() {
             remove the most risk per rupee.
           </p>
 
-          <Button size="lg" onClick={enter} disabled={flying}>
-            {flying ? 'Entering…' : 'Enter Command Center'}
-          </Button>
+          {/* Two destinations, because there are two products here and a
+              phone is holding the wrong one. The command center is a desk
+              tool; someone on a phone is almost certainly a driver. */}
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+            <Button size="lg" onClick={enter} disabled={flying}>
+              {flying ? 'Entering…' : 'Enter Command Center'}
+            </Button>
+            <Button
+              size="lg"
+              variant="secondary"
+              onClick={() => navigate('/app')}
+            >
+              Open driver app
+            </Button>
+          </div>
 
-          <div className="mt-4 flex flex-wrap gap-8">
+          <div className="mt-4 grid w-full grid-cols-2 gap-x-4 gap-y-3 sm:flex sm:w-auto sm:gap-8">
             <div className="flex flex-col">
               <span className="eyebrow">Segments monitored</span>
               <CountUp
@@ -340,14 +352,14 @@ export function Landing() {
                   (kpis?.watchCount ?? 0) +
                   (kpis?.goodCount ?? 0)
                 }
-                className="text-metric-md"
+                className="text-metric-md whitespace-nowrap"
               />
             </div>
             <div className="flex flex-col">
               <span className="eyebrow">Bumps logged today</span>
               <CountUp
                 value={kpis?.bumpsToday ?? 0}
-                className="text-metric-md"
+                className="text-metric-md whitespace-nowrap"
               />
             </div>
             <div className="flex flex-col">
@@ -355,7 +367,7 @@ export function Landing() {
               <CountUp
                 value={kpis?.costExposureInr ?? 0}
                 format={formatInr}
-                className="text-metric-md"
+                className="text-metric-md whitespace-nowrap"
               />
             </div>
           </div>
