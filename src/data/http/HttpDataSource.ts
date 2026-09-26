@@ -1,4 +1,5 @@
 import type { DataSource } from '@/data/DataSource'
+import type { Escalation } from '@shared/escalation'
 import type {
   DailyScore,
   ForecastPoint,
@@ -100,6 +101,28 @@ export class HttpDataSource implements DataSource {
     return this.request('/api/work-orders', {
       method: 'POST',
       body: JSON.stringify({ segmentIds }),
+    })
+  }
+
+  getEscalations(): Promise<Escalation[]> {
+    return this.request('/api/escalations')
+  }
+
+  generateEscalations(): Promise<{
+    created: Escalation[]
+    skipped: { segmentId: number; reason: string }[]
+  }> {
+    return this.request('/api/escalations/generate', { method: 'POST' })
+  }
+
+  reviewEscalation(
+    id: string,
+    action: 'approve' | 'send' | 'dismiss',
+    reason?: string,
+  ): Promise<Escalation> {
+    return this.request(`/api/escalations/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ action, reason }),
     })
   }
 

@@ -179,6 +179,33 @@ Defects are **derived from the condition score**, not surveyed, and the UI says
 so: the drawer labels them "modelled". When the backend starts clustering real
 impact positions, `potholesFor` is the single function that gets replaced.
 
+## 4c. Escalating to the authority that owns the road
+
+`shared/escalation.ts` turns a failing road into a complaint a works department
+can act on: where it is, how bad, what evidence exists, likely cost, and a map
+link. Roads route by class — NHAI for national highways, state PWD for major
+roads, the municipal corporation for everything else.
+
+**Drafting is automatic. Sending is not.** A detector cannot tell a pothole
+from a speed bump, a manhole cover or a driver braking hard, and a few spurious
+complaints to a works department do lasting damage: they waste an official's
+time and teach them to ignore the next report, including the true ones. So a
+draft is prepared automatically, an engineer reads it, and only then does it
+go — from their own mail client, where the reply reaches a human.
+
+Three rules keep the queue honest:
+
+- **Corroboration.** Eight impacts on the same 50m within a week, or one photo
+  report an engineer approved. One phone hitting something once is not evidence.
+- **Cooldown.** The same road is not reported again for 30 days.
+- **A cap of ten per run.** A department that receives two hundred reports in a
+  morning acts on none of them.
+
+Authority addresses are **deliberately empty** (`server/src/escalation/authorities.ts`).
+Publishing a guessed address for a public office would be worse than having
+none, so the server refuses to transmit until one is configured, and the app
+always offers the mail-client route instead.
+
 ## 4b. Calibrating the detector against a real road
 
 The detection algorithm lives in `shared/bumpDetector.ts` as a pure state

@@ -11,6 +11,7 @@ const ROUTES = [
   { path: '/budget', name: 'budget' },
   { path: '/work-orders', name: 'work-orders' },
   { path: '/reports', name: 'reports' },
+  { path: '/escalations', name: 'escalations' },
   { path: '/app', name: 'driver-home' },
   { path: '/app/trip', name: 'driver-trip' },
   { path: '/app/report', name: 'driver-report' },

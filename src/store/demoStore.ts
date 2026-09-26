@@ -9,6 +9,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { PhotoStatus, WorkOrder, WorkOrderStatus } from '@/data/types'
+import type { Escalation } from '@shared/escalation'
 
 interface DemoState {
   /** Patches applied on top of generated work orders, by id. */
@@ -21,6 +22,8 @@ interface DemoState {
   budgetInr: number
   /** Bumps counted since the demo started, added to the seeded base. */
   liveBumps: number
+  /** Drafted complaints, in the mock. The server owns these when it is in play. */
+  escalations: Escalation[]
 
   patchWorkOrder: (id: string, patch: Partial<WorkOrder>) => void
   addWorkOrders: (orders: WorkOrder[]) => void
@@ -28,6 +31,7 @@ interface DemoState {
   setPhotoStatus: (id: string, status: PhotoStatus) => void
   setBudget: (budgetInr: number, plan: number[]) => void
   countBump: () => void
+  setEscalations: (escalations: Escalation[]) => void
   reset: () => void
 }
 
@@ -38,6 +42,7 @@ const EMPTY = {
   budgetPlan: [],
   budgetInr: 1_00_00_000, // ₹1 crore
   liveBumps: 0,
+  escalations: [],
 }
 
 export const useDemoStore = create<DemoState>()(
@@ -89,6 +94,8 @@ export const useDemoStore = create<DemoState>()(
       setBudget: (budgetInr, plan) => set({ budgetInr, budgetPlan: plan }),
 
       countBump: () => set((state) => ({ liveBumps: state.liveBumps + 1 })),
+
+      setEscalations: (escalations) => set({ escalations }),
 
       reset: () => set({ ...EMPTY }),
     }),

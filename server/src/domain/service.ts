@@ -12,6 +12,16 @@ import type {
   WorkOrder,
   WorkOrderStatus,
 } from '@shared/contract'
+import {
+  buildComplaint,
+  shouldEscalate,
+  authorityKindFor,
+  DEFAULT_ESCALATION_RULES,
+  type Escalation,
+  type EscalationStatus,
+} from '@shared/escalation'
+import { authorities, isDeliverable } from '../escalation/authorities.js'
+import type { Notifier } from '../escalation/Notifier.js'
 import { buildKpis, buildStatus } from './scoring.js'
 import { buildSpatialIndex, type SpatialIndex } from './geo.js'
 import type { EventBus } from '../live/EventBus.js'
@@ -62,6 +72,7 @@ export class InfraPulseService {
   constructor(
     private readonly repo: Repository,
     private readonly bus: EventBus,
+    private readonly notifier?: Notifier,
   ) {}
 
   private async spatialIndex(): Promise<SpatialIndex> {
@@ -450,6 +461,156 @@ export class InfraPulseService {
     const bumpsToday = [...today.values()].reduce((a, b) => a + b, 0)
 
     return buildKpis(statuses, histories, workOrders, bumpsToday)
+  }
+
+  /* --- Escalation to the road-owning authority --------------------------- */
+
+  async getEscalations(): Promise<Escalation[]> {
+    return this.repo.listEscalations()
+  }
+
+  /**
+   * Drafts a complaint for every segment that has earned one.
+   *
+   * Idempotent by way of the cooldown: running it twice in a day produces
+   * nothing the second time, so it is safe to call on a schedule or from a
+   * button without piling up duplicates.
+   */
+  async generateEscalations(): Promise<{
+    created: Escalation[]
+    skipped: { segmentId: number; reason: string }[]
+  }> {
+    const [statuses, photos] = await Promise.all([
+      this.getStatuses(),
+      this.repo.listPhotoReports(),
+    ])
+
+    const approvedBySegment = new Map<number, PhotoReport[]>()
+    for (const photo of photos) {
+      if (photo.status !== 'approved') continue
+      const list = approvedBySegment.get(photo.segmentId) ?? []
+      list.push(photo)
+      approvedBySegment.set(photo.segmentId, list)
+    }
+
+    const directory = authorities()
+    const created: Escalation[] = []
+    const skipped: { segmentId: number; reason: string }[] = []
+
+    // Worst first, so a capped run reports the roads that matter most.
+    const ranked = [...statuses].sort((a, b) => b.priority - a.priority)
+
+    for (const status of ranked) {
+      if (created.length >= DEFAULT_ESCALATION_RULES.maxPerRun) break
+      const segment = await this.repo.getSegment(status.id)
+      if (!segment) continue
+
+      const decision = shouldEscalate(
+        {
+          segment,
+          status,
+          approvedPhotos: approvedBySegment.get(status.id) ?? [],
+          lastEscalatedAt: await this.repo.lastEscalatedAt(status.id),
+        },
+        DEFAULT_ESCALATION_RULES,
+      )
+
+      if (!decision.escalate) {
+        // Only worth explaining for roads that were candidates at all.
+        if (status.band !== 'good' && skipped.length < 20) {
+          skipped.push({ segmentId: status.id, reason: decision.reason })
+        }
+        continue
+      }
+
+      const authority = directory[authorityKindFor(segment)]
+      const reference =
+        'IP-' +
+        new Date().getFullYear() +
+        '-' +
+        String(status.id).padStart(4, '0')
+
+      const { subject, body } = buildComplaint({
+        segment,
+        status,
+        authority,
+        approvedPhotos: approvedBySegment.get(status.id) ?? [],
+        reference,
+      })
+
+      const [lon, lat] = segment.center
+      const escalation: Escalation = {
+        id: reference,
+        segmentId: segment.id,
+        segmentName: segment.name,
+        // Drafted, never sent. A person decides.
+        status: 'draft',
+        authority,
+        subject,
+        body,
+        location: {
+          lat,
+          lon,
+          mapsUrl:
+            'https://www.google.com/maps?q=' +
+            lat.toFixed(6) +
+            ',' +
+            lon.toFixed(6),
+        },
+        severity: status.band === 'critical' ? 'critical' : 'watch',
+        photoReportIds: (approvedBySegment.get(status.id) ?? []).map(
+          (p) => p.id,
+        ),
+        estimatedCostInr: status.estimatedCostInr,
+        createdAt: new Date().toISOString(),
+      }
+
+      created.push(await this.repo.insertEscalation(escalation))
+    }
+
+    return { created, skipped }
+  }
+
+  async reviewEscalation(
+    id: string,
+    action: 'approve' | 'send' | 'dismiss',
+    reason?: string,
+  ): Promise<Escalation> {
+    const current = await this.repo.getEscalation(id)
+    if (!current) throw ApiError.notFound(`No escalation ${id}`)
+
+    const now = new Date().toISOString()
+    let patch: Partial<Escalation>
+
+    if (action === 'approve') {
+      if (current.status !== 'draft') {
+        throw ApiError.conflict(`${id} is already ${current.status}.`)
+      }
+      patch = { status: 'approved' as EscalationStatus, approvedAt: now }
+    } else if (action === 'dismiss') {
+      patch = {
+        status: 'dismissed' as EscalationStatus,
+        dismissedReason: reason,
+      }
+    } else {
+      // Approval is a separate, deliberate step before anything leaves.
+      if (current.status !== 'approved') {
+        throw ApiError.conflict(
+          `${id} must be approved by a reviewer before it can be sent.`,
+        )
+      }
+      if (!isDeliverable(current.authority)) {
+        throw ApiError.conflict(
+          `No address is configured for ${current.authority.name}. Set it from that office's published contacts, or open the draft in your own mail client.`,
+        )
+      }
+      await this.notifier?.send(current)
+      patch = { status: 'sent' as EscalationStatus, sentAt: now }
+    }
+
+    const updated = await this.repo.updateEscalation(id, patch)
+    if (!updated) throw ApiError.notFound(`No escalation ${id}`)
+    return updated
   }
 
   liveHistory(): LiveEvent[] {

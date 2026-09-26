@@ -3,6 +3,7 @@ import { createApp } from './app.js'
 import { InfraPulseService } from './domain/service.js'
 import { env, isProduction } from './env.js'
 import { EventBus } from './live/EventBus.js'
+import { OutboxNotifier } from './escalation/Notifier.js'
 import { InMemoryRepository } from './repository/InMemoryRepository.js'
 
 /*
@@ -16,7 +17,7 @@ import { InMemoryRepository } from './repository/InMemoryRepository.js'
  */
 const repository = new InMemoryRepository()
 const bus = new EventBus()
-const service = new InfraPulseService(repository, bus)
+const service = new InfraPulseService(repository, bus, new OutboxNotifier())
 
 const app = createApp({
   service,

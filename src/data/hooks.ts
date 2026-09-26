@@ -60,6 +60,13 @@ export function useWorkOrders() {
   })
 }
 
+export function useEscalations() {
+  return useQuery({
+    queryKey: qk.escalations,
+    queryFn: () => dataSource.getEscalations(),
+  })
+}
+
 export function useProjectedScores(dayOffset: number) {
   return useQuery({
     queryKey: qk.projected(dayOffset),

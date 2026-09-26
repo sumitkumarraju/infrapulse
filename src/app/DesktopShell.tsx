@@ -7,6 +7,7 @@ const NAV = [
   { to: '/budget', label: 'Budget' },
   { to: '/work-orders', label: 'Work orders' },
   { to: '/reports', label: 'Reports' },
+  { to: '/escalations', label: 'Escalations' },
 ]
 
 /**

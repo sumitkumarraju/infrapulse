@@ -14,6 +14,7 @@ import {
   photoReportSchema,
   photoStatusSchema,
   projectedQuerySchema,
+  reviewEscalationSchema,
   updateWorkOrderSchema,
 } from './http/schemas.js'
 
@@ -213,6 +214,29 @@ export function createApp({
   app.patch('/api/work-orders/:id', async (c) => {
     const body = updateWorkOrderSchema.parse(await c.req.json())
     return c.json(await service.updateWorkOrder(c.req.param('id'), body))
+  })
+
+  /* --- Escalations ---------------------------------------------------------- */
+
+  app.get('/api/escalations', async (c) =>
+    c.json(await service.getEscalations()),
+  )
+
+  // Drafts complaints for every road that has earned one. Safe to call twice:
+  // the cooldown makes it idempotent within its window.
+  app.post('/api/escalations/generate', async (c) =>
+    c.json(await service.generateEscalations(), 201),
+  )
+
+  app.patch('/api/escalations/:id', async (c) => {
+    const body = reviewEscalationSchema.parse(await c.req.json())
+    return c.json(
+      await service.reviewEscalation(
+        c.req.param('id'),
+        body.action,
+        body.reason,
+      ),
+    )
   })
 
   /* --- Aggregates ----------------------------------------------------------- */

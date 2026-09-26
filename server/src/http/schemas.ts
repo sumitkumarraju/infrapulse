@@ -67,6 +67,11 @@ export const updateWorkOrderSchema = z
     'Nothing to update',
   )
 
+export const reviewEscalationSchema = z.object({
+  action: z.enum(['approve', 'send', 'dismiss']),
+  reason: z.string().max(500).optional(),
+})
+
 export const projectedQuerySchema = z.object({
   days: z.coerce.number().int().min(0).max(90).default(0),
 })

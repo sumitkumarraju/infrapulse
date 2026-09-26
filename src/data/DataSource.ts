@@ -1,3 +1,4 @@
+import type { Escalation } from '@shared/escalation'
 import type {
   DailyScore,
   ForecastPoint,
@@ -30,6 +31,20 @@ export interface DataSource {
   getKpis(): Promise<Kpis>
   /** Returns an unsubscribe function. */
   subscribeLive(cb: (e: LiveEvent) => void): () => void
+  /* --- Escalation to the road-owning authority ------------------------- */
+
+  getEscalations(): Promise<Escalation[]>
+  /** Drafts complaints for every road that has earned one. Idempotent. */
+  generateEscalations(): Promise<{
+    created: Escalation[]
+    skipped: { segmentId: number; reason: string }[]
+  }>
+  reviewEscalation(
+    id: string,
+    action: 'approve' | 'send' | 'dismiss',
+    reason?: string,
+  ): Promise<Escalation>
+
   /** Projected score for a segment N days out — the Time Machine. */
   getProjectedScores(dayOffset: number): Promise<Map<number, number>>
   resetDemo(): Promise<void>
@@ -44,5 +59,6 @@ export const qk = {
   photos: ['photo-reports'] as const,
   workOrders: ['work-orders'] as const,
   kpis: ['kpis'] as const,
+  escalations: ['escalations'] as const,
   projected: (offset: number) => ['projected', offset] as const,
 }

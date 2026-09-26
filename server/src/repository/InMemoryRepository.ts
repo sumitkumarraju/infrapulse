@@ -15,6 +15,7 @@ import type {
   Segment,
   WorkOrder,
 } from '@shared/contract'
+import type { Escalation } from '@shared/escalation'
 import type { BumpObservation, Repository } from './Repository.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -38,6 +39,7 @@ export class InMemoryRepository implements Repository {
   private bumps: BumpObservation[] = []
   private photos: PhotoReport[] = []
   private workOrders: WorkOrder[] = []
+  private escalations: Escalation[] = []
   private ready: Promise<void> | null = null
 
   /** Loads the network and seeds history on first use. */
@@ -204,8 +206,48 @@ export class InMemoryRepository implements Repository {
     return updated
   }
 
+  async listEscalations(): Promise<Escalation[]> {
+    await this.init()
+    return this.escalations
+  }
+
+  async getEscalation(id: string): Promise<Escalation | null> {
+    await this.init()
+    return this.escalations.find((e) => e.id === id) ?? null
+  }
+
+  async insertEscalation(escalation: Escalation): Promise<Escalation> {
+    await this.init()
+    this.escalations = [escalation, ...this.escalations]
+    return escalation
+  }
+
+  async updateEscalation(
+    id: string,
+    patch: Partial<Escalation>,
+  ): Promise<Escalation | null> {
+    await this.init()
+    const index = this.escalations.findIndex((e) => e.id === id)
+    if (index === -1) return null
+    const updated = { ...this.escalations[index], ...patch, id }
+    this.escalations[index] = updated
+    return updated
+  }
+
+  async lastEscalatedAt(segmentId: number): Promise<string | null> {
+    await this.init()
+    // Dismissed drafts do not start a cooldown: someone decided this one was
+    // not worth reporting, which should not block a later, worse reading.
+    const relevant = this.escalations
+      .filter((e) => e.segmentId === segmentId && e.status !== 'dismissed')
+      .map((e) => e.createdAt)
+      .sort()
+    return relevant[relevant.length - 1] ?? null
+  }
+
   async reset(): Promise<void> {
     this.segments = []
+    this.escalations = []
     this.histories.clear()
     this.bumps = []
     this.photos = []

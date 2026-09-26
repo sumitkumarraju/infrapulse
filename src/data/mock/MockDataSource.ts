@@ -22,7 +22,42 @@ import type {
   SegmentStatus,
   WorkOrder,
 } from '@/data/types'
+import {
+  authorityKindFor,
+  buildComplaint,
+  DEFAULT_ESCALATION_RULES,
+  shouldEscalate,
+  type Authority,
+  type AuthorityKind,
+  type Escalation,
+} from '@shared/escalation'
 import { useDemoStore } from '@/store/demoStore'
+
+/*
+ * In the browser there is no configuration and no mailbox, so the authorities
+ * are named but have no address. That is not a placeholder to be filled in
+ * later — it is the honest state: a draft prepared here can be reviewed and
+ * opened in the reviewer's own mail client, and nothing can be transmitted by
+ * the app itself. The server behaves the same way until an operator supplies a
+ * real address.
+ */
+const MOCK_AUTHORITIES: Record<AuthorityKind, Authority> = {
+  national: {
+    kind: 'national',
+    name: 'The Project Director, National Highways Authority of India',
+    email: '',
+  },
+  state: {
+    kind: 'state',
+    name: 'The Executive Engineer, Public Works Department (Buildings & Roads)',
+    email: '',
+  },
+  municipal: {
+    kind: 'municipal',
+    name: 'The Commissioner, Municipal Corporation',
+    email: '',
+  },
+}
 
 /** Bumps already logged today before the page opened. Seeded, not random. */
 const BASE_BUMPS_TODAY = 412
@@ -247,6 +282,128 @@ export class MockDataSource implements DataSource {
       cancelled = true
       unsubscribe?.()
     }
+  }
+
+  /* --- Escalation ------------------------------------------------------- */
+
+  async getEscalations(): Promise<Escalation[]> {
+    return useDemoStore.getState().escalations
+  }
+
+  async generateEscalations(): Promise<{
+    created: Escalation[]
+    skipped: { segmentId: number; reason: string }[]
+  }> {
+    const { segments, statuses } = await this.load()
+    const photos = await this.getPhotoReports()
+    const existing = useDemoStore.getState().escalations
+
+    const approvedBySegment = new Map<number, PhotoReport[]>()
+    for (const photo of photos) {
+      if (photo.status !== 'approved') continue
+      const list = approvedBySegment.get(photo.segmentId) ?? []
+      list.push(photo)
+      approvedBySegment.set(photo.segmentId, list)
+    }
+
+    const lastBySegment = new Map<number, string>()
+    for (const escalation of existing) {
+      if (escalation.status === 'dismissed') continue
+      lastBySegment.set(escalation.segmentId, escalation.createdAt)
+    }
+
+    const byId = new Map(segments.map((s) => [s.id, s]))
+    const created: Escalation[] = []
+    const skipped: { segmentId: number; reason: string }[] = []
+
+    for (const status of [...statuses].sort(
+      (a, b) => b.priority - a.priority,
+    )) {
+      if (created.length >= DEFAULT_ESCALATION_RULES.maxPerRun) break
+      const segment = byId.get(status.id)
+      if (!segment) continue
+
+      const decision = shouldEscalate(
+        {
+          segment,
+          status,
+          approvedPhotos: approvedBySegment.get(status.id) ?? [],
+          lastEscalatedAt: lastBySegment.get(status.id) ?? null,
+        },
+        DEFAULT_ESCALATION_RULES,
+      )
+
+      if (!decision.escalate) {
+        if (status.band !== 'good' && skipped.length < 20) {
+          skipped.push({ segmentId: status.id, reason: decision.reason })
+        }
+        continue
+      }
+
+      const authority = MOCK_AUTHORITIES[authorityKindFor(segment)]
+      const reference = `IP-${new Date().getFullYear()}-${String(status.id).padStart(4, '0')}`
+      const { subject, body } = buildComplaint({
+        segment,
+        status,
+        authority,
+        approvedPhotos: approvedBySegment.get(status.id) ?? [],
+        reference,
+      })
+
+      const [lon, lat] = segment.center
+      created.push({
+        id: reference,
+        segmentId: segment.id,
+        segmentName: segment.name,
+        status: 'draft',
+        authority,
+        subject,
+        body,
+        location: {
+          lat,
+          lon,
+          mapsUrl: `https://www.google.com/maps?q=${lat.toFixed(6)},${lon.toFixed(6)}`,
+        },
+        severity: status.band === 'critical' ? 'critical' : 'watch',
+        photoReportIds: (approvedBySegment.get(status.id) ?? []).map(
+          (p) => p.id,
+        ),
+        estimatedCostInr: status.estimatedCostInr,
+        createdAt: new Date().toISOString(),
+      })
+    }
+
+    useDemoStore.getState().setEscalations([...created, ...existing])
+    return { created, skipped }
+  }
+
+  async reviewEscalation(
+    id: string,
+    action: 'approve' | 'send' | 'dismiss',
+    reason?: string,
+  ): Promise<Escalation> {
+    const store = useDemoStore.getState()
+    const current = store.escalations.find((e) => e.id === id)
+    if (!current) throw new Error(`No escalation ${id}`)
+
+    const now = new Date().toISOString()
+    let next: Escalation
+
+    if (action === 'approve') {
+      next = { ...current, status: 'approved', approvedAt: now }
+    } else if (action === 'dismiss') {
+      next = { ...current, status: 'dismissed', dismissedReason: reason }
+    } else {
+      // The same rule the server enforces: approval is its own step, and
+      // "sent" here means a person sent it from their own mail client.
+      if (current.status !== 'approved') {
+        throw new Error(`${id} must be approved before it can be marked sent.`)
+      }
+      next = { ...current, status: 'sent', sentAt: now }
+    }
+
+    store.setEscalations(store.escalations.map((e) => (e.id === id ? next : e)))
+    return next
   }
 
   async resetDemo(): Promise<void> {

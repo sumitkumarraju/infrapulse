@@ -6,6 +6,7 @@ import type {
   WorkOrder,
   WorkOrderStatus,
 } from '@shared/contract'
+import type { Escalation } from '@shared/escalation'
 
 /**
  * The database seam.
@@ -58,6 +59,18 @@ export interface Repository {
     id: string,
     patch: Partial<WorkOrder>,
   ): Promise<WorkOrder | null>
+
+  /* --- Escalations to the road-owning authority --------------------------- */
+
+  listEscalations(): Promise<Escalation[]>
+  getEscalation(id: string): Promise<Escalation | null>
+  insertEscalation(escalation: Escalation): Promise<Escalation>
+  updateEscalation(
+    id: string,
+    patch: Partial<Escalation>,
+  ): Promise<Escalation | null>
+  /** When this segment was last reported, for the cooldown. */
+  lastEscalatedAt(segmentId: number): Promise<string | null>
 
   /* --- Demo support ------------------------------------------------------- */
 

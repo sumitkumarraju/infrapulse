@@ -99,6 +99,8 @@ secret for everyone. When the devices table exists, that is the thing to fix.
 - **Verification measures the repair**, comparing the impact rate since work
   completed against the rate before it started.
 - **Only approved photo reports affect a score.**
+- **A complaint cannot be sent before a person approves it**, and cannot be
+  sent at all until an address is configured for that office. Both return 409.
 
 ## Configuration
 

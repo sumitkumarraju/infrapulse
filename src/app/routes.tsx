@@ -4,6 +4,7 @@ import { MobileShell } from '@/app/MobileShell'
 import { Placeholder } from '@/app/Placeholder'
 import { Budget } from '@/routes/Budget'
 import { Command } from '@/routes/Command'
+import { Escalations } from '@/routes/Escalations'
 import { Forecast } from '@/routes/Forecast'
 import { Landing } from '@/routes/Landing'
 import { Reports } from '@/routes/Reports'
@@ -27,6 +28,7 @@ export function AppRoutes() {
         <Route path="budget" element={<Budget />} />
         <Route path="work-orders" element={<WorkOrders />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="escalations" element={<Escalations />} />
         <Route path="*" element={<Placeholder title="Not found" phase="—" />} />
       </Route>
 
