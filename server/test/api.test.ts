@@ -1,23 +1,59 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import type { Hono } from 'hono'
 import { createApp } from '../src/app.js'
 import { InfraPulseService } from '../src/domain/service.js'
 import { EventBus } from '../src/live/EventBus.js'
 import { InMemoryRepository } from '../src/repository/InMemoryRepository.js'
 import type { Segment, SegmentStatus, WorkOrder } from '@shared/contract'
 
+const OPERATOR_PASSWORD = 'test-operator-password'
+
+/** Anything that can take a request: the raw app, or the signed-in wrapper. */
+interface Requestable {
+  request(path: string, init?: RequestInit): Promise<Response>
+}
+
 /* Each suite gets its own repository, so an ingest in one test cannot move a
- * score another test is asserting on. */
+ * score another test is asserting on.
+ *
+ * `app` signs in as the operator on first use, because most of the API is
+ * behind that gate and repeating the login in every test would bury what each
+ * one is actually checking. `anonymous` is the same app without the cookie,
+ * for the tests that check the gate itself. */
 function build() {
   const repo = new InMemoryRepository()
   const bus = new EventBus()
   const service = new InfraPulseService(repo, bus)
-  const app = createApp({ service, enableDemoRoutes: true, quiet: true })
-  return { app, service, bus }
+  const anonymous = createApp({
+    service,
+    enableDemoRoutes: true,
+    quiet: true,
+    operatorPassword: OPERATOR_PASSWORD,
+  })
+
+  let cookie: string | null = null
+
+  const app: Requestable = {
+    async request(path, init) {
+      if (!cookie) {
+        const response = await anonymous.request('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: OPERATOR_PASSWORD }),
+        })
+        cookie = (response.headers.get('set-cookie') ?? '').split(';')[0]
+      }
+
+      const headers = new Headers(init?.headers)
+      headers.set('Cookie', cookie)
+      return anonymous.request(path, { ...init, headers })
+    },
+  }
+
+  return { app, anonymous, service, bus }
 }
 
 async function json<T>(
-  app: Hono,
+  app: Requestable,
   path: string,
   init?: RequestInit,
 ): Promise<T> {
@@ -37,7 +73,7 @@ function post(body: unknown, token?: string): RequestInit {
 }
 
 /** Registers a device and returns its bearer token. */
-async function register(app: Hono): Promise<string> {
+async function register(app: Requestable): Promise<string> {
   const response = await app.request('/api/devices/register', {
     method: 'POST',
   })
@@ -445,6 +481,159 @@ describe('ingest is not open to the world', () => {
     const a = await register(app)
     const b = await register(app)
     expect(a).not.toBe(b)
+  })
+})
+
+describe('the engineer routes are not public', () => {
+  const OPERATOR_ONLY: [string, string][] = [
+    ['GET', '/api/segments'],
+    ['GET', '/api/segments/status'],
+    ['GET', '/api/segments/1/history'],
+    ['GET', '/api/work-orders'],
+    ['GET', '/api/escalations'],
+    ['GET', '/api/reports'],
+  ]
+
+  it('refuses every operator route without a session', async () => {
+    const { anonymous } = build()
+
+    for (const [method, path] of OPERATOR_ONLY) {
+      const response = await anonymous.request(path, { method })
+      expect(response.status, `${method} ${path}`).toBe(401)
+      expect(await response.json()).toMatchObject({
+        error: { code: 'login_required' },
+      })
+    }
+  })
+
+  it('refuses a wrong password, and says nothing about why', async () => {
+    const { anonymous } = build()
+    const response = await anonymous.request(
+      '/api/auth/login',
+      post({ password: 'not-the-password' }),
+    )
+
+    expect(response.status).toBe(401)
+    const body = (await response.json()) as { error: { message: string } }
+    expect(body.error.message).not.toContain(OPERATOR_PASSWORD)
+  })
+
+  it('lets an operator in and out again', async () => {
+    const { anonymous } = build()
+
+    expect(
+      await json<{ signedIn: boolean }>(anonymous, '/api/auth/me'),
+    ).toEqual({
+      signedIn: false,
+    })
+
+    const login = await anonymous.request(
+      '/api/auth/login',
+      post({ password: OPERATOR_PASSWORD }),
+    )
+    expect(login.status).toBe(200)
+
+    const cookie = (login.headers.get('set-cookie') ?? '').split(';')[0]
+    expect(cookie).toContain('infrapulse_session')
+
+    const me = await anonymous.request('/api/auth/me', {
+      headers: { Cookie: cookie },
+    })
+    expect(await me.json()).toEqual({ signedIn: true })
+
+    const segments = await anonymous.request('/api/segments', {
+      headers: { Cookie: cookie },
+    })
+    expect(segments.status).toBe(200)
+  })
+
+  it('keeps the session cookie away from scripts', async () => {
+    // HttpOnly is the difference between a cross-site script stealing a
+    // session and merely being able to use one while the page is open.
+    const { anonymous } = build()
+    const login = await anonymous.request(
+      '/api/auth/login',
+      post({ password: OPERATOR_PASSWORD }),
+    )
+    const header = login.headers.get('set-cookie') ?? ''
+    expect(header).toContain('HttpOnly')
+    expect(header).toContain('SameSite=Lax')
+  })
+
+  it('rejects a tampered session', async () => {
+    const { anonymous } = build()
+    const login = await anonymous.request(
+      '/api/auth/login',
+      post({ password: OPERATOR_PASSWORD }),
+    )
+    const cookie = (login.headers.get('set-cookie') ?? '').split(';')[0]
+    const tampered = cookie.slice(0, -1) + (cookie.endsWith('A') ? 'B' : 'A')
+
+    const response = await anonymous.request('/api/segments', {
+      headers: { Cookie: tampered },
+    })
+    expect(response.status).toBe(401)
+  })
+
+  it('still lets a citizen report a pothole without signing in', async () => {
+    // Requiring an account to report a pothole would defeat the point.
+    const { app, anonymous } = build()
+    const segments = await json<Segment[]>(app, '/api/segments')
+    const target = segments[7]
+
+    const response = await anonymous.request(
+      '/api/reports',
+      post({
+        lat: target.center[1],
+        lon: target.center[0],
+        imageUrl: '/mock-photos/road-1.svg',
+        label: 'pothole',
+        confidence: 0.88,
+        severity: 'moderate',
+        box: { x: 0.2, y: 0.2, w: 0.2, h: 0.2 },
+        reporter: 'Passing Citizen',
+      }),
+    )
+
+    expect(response.status).toBe(201)
+  })
+
+  it('still lets a phone register and ingest without signing in', async () => {
+    const { anonymous } = build()
+
+    const registration = await anonymous.request('/api/devices/register', {
+      method: 'POST',
+    })
+    expect(registration.status).toBe(201)
+
+    const { token } = (await registration.json()) as { token: string }
+    const ingest = await anonymous.request(
+      '/api/ingest/bumps',
+      post(
+        {
+          tripId: 'anonymous-trip',
+          bumps: [
+            {
+              at: new Date().toISOString(),
+              lat: 30.768,
+              lon: 76.575,
+              magnitude: 11,
+              speedMs: 10,
+            },
+          ],
+        },
+        token,
+      ),
+    )
+    expect(ingest.status).toBe(202)
+  })
+
+  it('leaves the city-wide summary readable', async () => {
+    // The landing page shows aggregate condition to the public, which is
+    // civic information rather than something to guard.
+    const { anonymous } = build()
+    const response = await anonymous.request('/api/kpis')
+    expect(response.status).toBe(200)
   })
 })
 

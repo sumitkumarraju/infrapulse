@@ -30,6 +30,15 @@ export const env = {
     process.env.DEVICE_TOKEN_SECRET ?? 'infrapulse-development-secret',
 
   /**
+   * The engineer dashboard's password, and the secret that signs its session
+   * cookies. One shared operator role, because there is no users table yet.
+   * index.ts refuses to start in production without both.
+   */
+  operatorPassword: process.env.OPERATOR_PASSWORD ?? 'infrapulse-dev',
+  sessionSecret:
+    process.env.SESSION_SECRET ?? 'infrapulse-development-session-secret',
+
+  /**
    * Reserved for the Postgres implementation. Deliberately unused today: the
    * server runs entirely on InMemoryRepository, and nothing here opens a
    * connection. See server/db/schema.sql and README.md.

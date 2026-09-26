@@ -6,6 +6,13 @@ import { ZodError } from 'zod'
 import type { LiveEvent } from '@shared/contract'
 import type { InfraPulseService } from './domain/service.js'
 import { ApiError } from './http/errors.js'
+import {
+  clearSessionCookie,
+  currentSession,
+  issueSessionCookie,
+  passwordMatches,
+  requireOperator,
+} from './http/session.js'
 import { mintDeviceToken, requireDevice } from './http/auth.js'
 import { rateLimit } from './http/rateLimit.js'
 import {
@@ -13,6 +20,7 @@ import {
   ingestSchema,
   photoReportSchema,
   photoStatusSchema,
+  loginSchema,
   projectedQuerySchema,
   reviewEscalationSchema,
   updateWorkOrderSchema,
@@ -26,6 +34,12 @@ export interface AppOptions {
   enableDemoRoutes?: boolean
   /** HMAC secret for device tokens on the ingest endpoint. */
   deviceTokenSecret?: string
+  /** The engineer dashboard's password. */
+  operatorPassword?: string
+  /** Signs operator session cookies. */
+  sessionSecret?: string
+  /** Set on the session cookie. False only for plain-http local development. */
+  secureCookies?: boolean
   quiet?: boolean
 }
 
@@ -52,6 +66,9 @@ export function createApp({
   corsOrigins = [],
   enableDemoRoutes = false,
   deviceTokenSecret = 'infrapulse-development-secret',
+  operatorPassword = 'infrapulse-dev',
+  sessionSecret = 'infrapulse-development-session-secret',
+  secureCookies = false,
   quiet = false,
 }: AppOptions) {
   const app = new Hono()
@@ -65,6 +82,10 @@ export function createApp({
         origin: corsOrigins,
         allowMethods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
         allowHeaders: ['Content-Type'],
+        // The session is a cookie, so the browser will not send it
+        // cross-origin unless the server says so. This is also why `origin`
+        // is an explicit list and never '*' — the two are incompatible.
+        credentials: true,
         maxAge: 86_400,
       }),
     )
@@ -114,6 +135,75 @@ export function createApp({
   app.get('/api/health', (c) =>
     c.json({ status: 'ok', time: new Date().toISOString() }),
   )
+
+  /* --- Who is allowed in ---------------------------------------------------- */
+
+  /*
+   * Two different gates, for two different callers.
+   *
+   * A driver's phone posts to /api/ingest/bumps with a device token: not a
+   * login, because reporting a pothole should not require an account. An
+   * engineer reading the condition of every road, moving work orders or
+   * approving a complaint to a public authority signs in properly.
+   */
+  app.post(
+    '/api/auth/login',
+    // Slow down anyone working through a password list. The window is long on
+    // purpose: a real operator logs in once a shift.
+    rateLimit({ limit: 10, windowMs: 15 * 60_000 }),
+    async (c) => {
+      const body = loginSchema.parse(await c.req.json())
+
+      if (!passwordMatches(body.password, operatorPassword)) {
+        // No hint about which part was wrong.
+        throw new ApiError(
+          401,
+          'invalid_credentials',
+          'That password is not right.',
+        )
+      }
+
+      issueSessionCookie(c, sessionSecret, secureCookies)
+      return c.json({ signedIn: true })
+    },
+  )
+
+  app.post('/api/auth/logout', (c) => {
+    clearSessionCookie(c)
+    return c.json({ signedIn: false })
+  })
+
+  // Lets the client decide whether to show the dashboard or the sign-in form
+  // without having to provoke a 401 first.
+  app.get('/api/auth/me', (c) =>
+    c.json({ signedIn: currentSession(c, sessionSecret) !== null }),
+  )
+
+  /* --- Everything below is for signed-in operators --------------------------
+   *
+   * Applied as one rule rather than per route, so a new endpoint is protected
+   * by default and has to be deliberately excluded. The exceptions above it are
+   * the citizen and device surfaces: health, auth, device registration, ingest,
+   * submitting a photo report, and the city-wide aggregate on the landing page.
+   */
+  app.use('/api/segments/*', requireOperator(sessionSecret))
+  app.use('/api/segments', requireOperator(sessionSecret))
+  app.use('/api/work-orders/*', requireOperator(sessionSecret))
+  app.use('/api/work-orders', requireOperator(sessionSecret))
+  app.use('/api/escalations/*', requireOperator(sessionSecret))
+  app.use('/api/escalations', requireOperator(sessionSecret))
+  app.use('/api/demo/*', requireOperator(sessionSecret))
+
+  // Reviewing the report queue is an operator job; submitting one is not, so
+  // only the read and the decision are gated.
+  app.use('/api/reports/*', async (c, next) => {
+    if (c.req.method === 'POST') return next()
+    return requireOperator(sessionSecret)(c, next)
+  })
+  app.use('/api/reports', async (c, next) => {
+    if (c.req.method === 'POST') return next()
+    return requireOperator(sessionSecret)(c, next)
+  })
 
   /* --- Road network and condition ---------------------------------------- */
 

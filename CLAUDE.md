@@ -268,9 +268,13 @@ process).
 - **Not deployed**, and no Lighthouse run, so the performance and PWA score
   targets are unmeasured.
 - **The backend has no database and no deployment.** It runs in one process and
-  loses everything on restart. Ingest now requires a device token and is rate
-  limited, but **the engineer routes are still open**: anyone who can reach the
-  server can read every score and move work orders.
+  loses everything on restart.
+- **One shared operator role.** The engineer routes now require a sign-in and
+  ingest requires a device token, but everyone who signs in is the same
+  operator: no per-person audit trail, and revoking access means rotating the
+  secret for everyone. Needs the users table that comes with Postgres.
+- **The driver's Impact screen has nothing to read against the server**, since
+  the report queue became operator-only. It needs a device-scoped endpoint.
 - **The wake lock is unverified on real hardware.** The trip screen requests
   `navigator.wakeLock` on start and reports honestly when it does not get it,
   but Claude's browser refuses the request outright

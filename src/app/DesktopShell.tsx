@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router'
+import { RequireOperator } from '@/app/RequireOperator'
 import { cn } from '@/lib/utils'
 
 const NAV = [
@@ -55,7 +56,9 @@ export function DesktopShell() {
       </header>
 
       <main className="flex-1">
-        <Outlet />
+        <RequireOperator>
+          <Outlet />
+        </RequireOperator>
       </main>
     </div>
   )

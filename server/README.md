@@ -59,6 +59,28 @@ calls it.
 Errors are always `{ error: { code, message } }`, and `message` is written to be
 shown to a person. Validation failures add a `fields` array.
 
+### Who may read and write
+
+Two gates, for two different callers.
+
+**Engineer routes require a session.** Segments, condition, history, forecasts,
+work orders, escalations and the report review queue are all behind a login —
+anyone who can reach the server was previously able to read every road's
+condition and move work orders around. The rule is applied to whole path
+prefixes rather than route by route, so a new endpoint is protected by default
+and has to be deliberately excluded.
+
+Deliberately left open: `/api/health`, the auth routes, device registration,
+`/api/ingest/bumps`, `POST /api/reports` and `GET /api/kpis`. A driver should
+not need an account to report a pothole, and the city-wide summary on the
+landing page is civic information rather than something to guard.
+
+The session is an HttpOnly, SameSite=Lax, signed cookie lasting twelve hours —
+about a shift. There is **one shared operator role and no users table**, which
+is a real limitation, not a pretence: no per-person audit trail, and revoking
+access means rotating `SESSION_SECRET` for everyone. Both are fixed by the same
+users table that arrives with Postgres.
+
 ### Who may write to it
 
 `/api/ingest/bumps` is the only endpoint an untrusted device posts to, and what
@@ -144,19 +166,24 @@ Two things to watch when you do:
 npm test
 ```
 
-25 tests over the real app — a fresh in-memory repository per suite, exercised
+33 tests over the real app — a fresh in-memory repository per suite, exercised
 through `app.request()` rather than a live socket. They cover the ingest and
 scoring path, the idempotency regression above, status-transition enforcement,
 validation limits, that impacts off the mapped network are kept rather than
 silently dropped, and that ingest rejects a missing, forged or tampered token
-and throttles a device submitting far more than a drive could produce.
+and throttles a device submitting far more than a drive could produce. The
+auth tests check that every operator route refuses an anonymous caller, that a
+tampered session is rejected, that the cookie is HttpOnly, and that a citizen
+can still report a pothole and a phone can still ingest without signing in.
 
 ## Not done
 
-- **The engineer routes have no authentication.** Ingest is gated by a device
-  token and rate limited, but anyone who can reach the server can still read
-  every road score and move work orders around. Those routes need a real
-  session before this is exposed to anything.
+- **One operator role, no users.** Everyone who signs in is the same operator:
+  no per-person audit trail, and no way to revoke one person's access without
+  rotating the secret for all of them.
+- **The citizen "my reports" view does not work against the server.** The
+  report queue is now operator-only, so a driver's Impact screen has nothing to
+  read. It needs a device-scoped endpoint rather than a hole in the gate.
 - **No persistence**, so all data is lost on restart.
 - **No deployment.** Nothing here has run anywhere but localhost.
 - **Single process.** `EventBus` fans out in memory; a second instance would not

@@ -30,6 +30,9 @@ export class HttpDataSource implements DataSource {
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...init,
+      // The operator session is an HttpOnly cookie; without this the browser
+      // withholds it cross-origin and every call looks anonymous.
+      credentials: 'include',
       headers: {
         ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
         ...init?.headers,

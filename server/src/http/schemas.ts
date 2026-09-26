@@ -67,6 +67,10 @@ export const updateWorkOrderSchema = z
     'Nothing to update',
   )
 
+export const loginSchema = z.object({
+  password: z.string().min(1).max(200),
+})
+
 export const reviewEscalationSchema = z.object({
   action: z.enum(['approve', 'send', 'dismiss']),
   reason: z.string().max(500).optional(),

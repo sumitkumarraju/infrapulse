@@ -24,7 +24,23 @@ const app = createApp({
   corsOrigins: env.corsOrigins,
   enableDemoRoutes: env.enableDemoRoutes,
   deviceTokenSecret: env.deviceTokenSecret,
+  operatorPassword: env.operatorPassword,
+  sessionSecret: env.sessionSecret,
+  // A cookie marked Secure is dropped over plain http, which would make local
+  // development impossible to sign in to.
+  secureCookies: isProduction,
 })
+
+if (
+  isProduction &&
+  (env.operatorPassword === 'infrapulse-dev' ||
+    env.sessionSecret.startsWith('infrapulse-development'))
+) {
+  console.error(
+    'FATAL: OPERATOR_PASSWORD and SESSION_SECRET must be set in production. Refusing to start with the development defaults.',
+  )
+  process.exit(1)
+}
 
 if (
   isProduction &&
@@ -51,6 +67,9 @@ serve({ fetch: app.fetch, port: env.port }, (info) => {
   console.log(`  storage:  in-memory (no database configured)`)
   console.log(`  cors:     ${env.corsOrigins.join(', ') || 'same-origin only'}`)
   console.log(`  demo:     ${env.enableDemoRoutes ? 'enabled' : 'disabled'}`)
+  console.log(
+    `  operator: password ${env.operatorPassword === 'infrapulse-dev' ? 'is the DEVELOPMENT default' : 'configured'}`,
+  )
   console.log(
     `  ingest:   device token required${
       env.deviceTokenSecret.startsWith('infrapulse-development')
