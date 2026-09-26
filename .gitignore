@@ -36,3 +36,11 @@ dist-ssr
 
 # Server build output
 /server/dist
+
+# Secrets. A Postgres connection string contains a password.
+# NOTE: GitHub's web "Add files via upload" does NOT consult this file —
+# it commits whatever is dragged in. Add credentials with `git add` or, better,
+# set them in the host's environment and never put them in a file at all.
+.env
+.env.*
+!.env.example

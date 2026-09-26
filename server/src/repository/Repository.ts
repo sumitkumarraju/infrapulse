@@ -32,6 +32,15 @@ export interface Repository {
 
   /** Daily scores for one segment, oldest first. */
   listHistory(segmentId: number): Promise<DailyScore[]>
+  /**
+   * The trailing `days` of history for every segment, in one call.
+   *
+   * Scoring and the KPIs both need recent history for all 1,108 segments.
+   * Asking per segment is fine against a Map and is 1,108 round trips against
+   * a database, which is the difference between a dashboard that loads and one
+   * that times out.
+   */
+  listRecentHistories(days: number): Promise<Map<number, DailyScore[]>>
   /** Every segment's most recent score. One query, not one per segment. */
   listLatestScores(): Promise<Map<number, number>>
   /** Replaces today's score for a segment after a recompute. */

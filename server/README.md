@@ -10,10 +10,10 @@ npm install
 npm run dev          # http://localhost:8787
 ```
 
-**There is no database.** The API runs on an in-memory repository seeded from
-the same deterministic generator the browser mock uses, so it returns a full,
-realistic city on first boot and loses everything on restart. That is the
-intended state for now — see [Adding Postgres](#adding-postgres).
+**A database is optional.** Without `DATABASE_URL` the API runs on an in-memory
+repository seeded from the same deterministic generator the browser mock uses:
+a full, realistic city on first boot, lost on restart. Set `DATABASE_URL` and
+the same API runs on Postgres instead — see [Using Postgres](#using-postgres).
 
 ## What it actually does
 
@@ -144,21 +144,41 @@ VITE_API_URL=http://localhost:8787 npm run dev
 Without `VITE_API_URL` the app runs entirely in the browser against the mock —
 no server needed. The swap is one line in `src/data/index.ts`.
 
-## Adding Postgres
+## Using Postgres
 
-1. Apply `db/schema.sql` (it assumes PostGIS for the road geometry).
-2. Write `PostgresRepository implements Repository`. The interface in
-   `src/repository/Repository.ts` is the whole contract — nothing above it knows
-   where rows live.
-3. Change the one line in `src/index.ts` that constructs the repository.
+Works with any Postgres that has PostGIS — Supabase, Neon, RDS or local.
+Nothing is provider-specific; the connection string is the only thing that
+decides where the rows live.
 
-Two things to watch when you do:
+```bash
+cp ../.env.example ../.env     # then put your connection string in it
+npm run db:migrate             # apply db/schema.sql
+npm run db:import              # load the road network and seed history
+npm run db:check               # prove the data layer actually works
+npm run dev                    # now backed by Postgres
+```
 
-- **`getStatuses` is an N+1 waiting to happen.** In memory it reads 1,108
-  histories in a loop. In SQL that must become one query with a window function,
-  not 1,108 round trips.
-- **`bump_observations` is the only table that grows without bound.** It wants
-  monthly partitioning on `at` and a retention policy once the rollup has run.
+On Supabase the string is under **Project Settings → Database → Connection
+string → URI**. Use the direct connection (port 5432) for this server, which is
+long-running; the pooled one (6543) is for serverless. PostGIS is enabled by
+`db:migrate`.
+
+**`db:check` is the important step.** `PostgresRepository` cannot be unit
+tested without a database, so it ships unverified until this runs: it exercises
+every method against your database — geometry round-tripping, the batch bump
+insert, the work-order status flow, the partial unique index actually refusing a
+second live order, photo status, and the escalation cooldown lookup — then
+deletes its own scratch rows.
+
+### Still worth knowing
+
+- **`bump_observations` is the only table that grows without bound.** One row
+  per impact per vehicle. At city scale it wants monthly partitioning on `at`
+  and a retention policy once the daily rollup has run.
+- **`reset()` refuses to run in production**, and elsewhere truncates the
+  observation tables while leaving the imported road network alone.
+- The N+1 that used to be here is gone: `listRecentHistories` reads the whole
+  network's recent history in one query instead of one per segment.
 
 ## Testing
 

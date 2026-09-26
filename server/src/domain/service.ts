@@ -34,6 +34,14 @@ import { ApiError } from '../http/errors.js'
 
 /** Bumps within this window count toward the current score. */
 const SCORING_WINDOW_DAYS = 7
+/**
+ * How much history the trend and the KPI sparkline need.
+ *
+ * buildStatus regresses over the last 30 days and the sparkline plots 30
+ * points, so reading more than this per segment is wasted bytes on every
+ * dashboard load.
+ */
+const TREND_DAYS = 30
 
 export interface IncomingBump {
   at: string
@@ -101,10 +109,12 @@ export class InfraPulseService {
       return cached.value
     }
 
-    const [segments, photos, bumpCounts] = await Promise.all([
+    const [segments, photos, bumpCounts, histories] = await Promise.all([
       this.repo.listSegments(),
       this.repo.listPhotoReports(),
       this.repo.countBumpsSince(this.windowStart()),
+      // One read for the whole network rather than one per segment.
+      this.repo.listRecentHistories(TREND_DAYS),
     ])
 
     const photoCounts = new Map<number, { total: number; approved: number }>()
@@ -124,7 +134,7 @@ export class InfraPulseService {
       statuses.push(
         buildStatus({
           segment,
-          history: await this.repo.listHistory(segment.id),
+          history: histories.get(segment.id) ?? [],
           bumpsLast7Days: bumpCounts.get(segment.id) ?? 0,
           photoReportCount: counts.total,
           approvedPhotoCount: counts.approved,
@@ -444,16 +454,11 @@ export class InfraPulseService {
   /* --- Aggregates --------------------------------------------------------- */
 
   async getKpis(): Promise<Kpis> {
-    const [statuses, workOrders, segments] = await Promise.all([
+    const [statuses, workOrders, histories] = await Promise.all([
       this.getStatuses(),
       this.repo.listWorkOrders(),
-      this.repo.listSegments(),
+      this.repo.listRecentHistories(TREND_DAYS),
     ])
-
-    const histories = new Map<number, DailyScore[]>()
-    for (const segment of segments) {
-      histories.set(segment.id, await this.repo.listHistory(segment.id))
-    }
 
     const startOfDay = new Date()
     startOfDay.setHours(0, 0, 0, 0)

@@ -267,8 +267,11 @@ process).
   nothing public. Then record a trace and see section 4b.
 - **Not deployed**, and no Lighthouse run, so the performance and PWA score
   targets are unmeasured.
-- **The backend has no database and no deployment.** It runs in one process and
-  loses everything on restart.
+- **No deployment**, and the database is optional: without `DATABASE_URL` the
+  server keeps everything in memory and loses it on restart. `PostgresRepository`
+  is written and `server/db/schema.sql` applies as-is to any Postgres with
+  PostGIS, but **it has never been run against a real database** — `npm run
+db:check` in `server/` is what proves it, and needs a connection string.
 - **One shared operator role.** The engineer routes now require a sign-in and
   ingest requires a device token, but everyone who signs in is the same
   operator: no per-person audit trail, and revoking access means rotating the

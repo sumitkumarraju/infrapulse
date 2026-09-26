@@ -3,23 +3,28 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "InfraPulse API — ingests bumps from phones, scores road segments, serves the dashboard.",
+  "description": "InfraPulse API \u2014 ingests bumps from phones, scores road segments, serves the dashboard.",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "build": "tsc -b",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:migrate": "tsx scripts/db.ts migrate",
+    "db:import": "tsx scripts/db.ts import",
+    "db:check": "tsx scripts/db.ts check"
   },
   "dependencies": {
     "@hono/node-server": "^1.15.0",
     "hono": "^4.7.0",
+    "pg": "^8.23.0",
     "seedrandom": "^3.0.5",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
+    "@types/pg": "^8.23.1",
     "@types/seedrandom": "^3.0.8",
     "tsx": "^4.20.0",
     "typescript": "~6.0.2",

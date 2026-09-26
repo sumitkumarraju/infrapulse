@@ -9,7 +9,9 @@ const OPERATOR_PASSWORD = 'test-operator-password'
 
 /** Anything that can take a request: the raw app, or the signed-in wrapper. */
 interface Requestable {
-  request(path: string, init?: RequestInit): Promise<Response>
+  // Hono's own request() may answer synchronously, so this is widened to
+  // accept the raw app as well as the signed-in wrapper.
+  request(path: string, init?: RequestInit): Response | Promise<Response>
 }
 
 /* Each suite gets its own repository, so an ingest in one test cannot move a

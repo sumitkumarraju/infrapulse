@@ -5,6 +5,7 @@ import { env, isProduction } from './env.js'
 import { EventBus } from './live/EventBus.js'
 import { OutboxNotifier } from './escalation/Notifier.js'
 import { InMemoryRepository } from './repository/InMemoryRepository.js'
+import { PostgresRepository } from './repository/PostgresRepository.js'
 
 /*
  * Entry point.
@@ -15,7 +16,15 @@ import { InMemoryRepository } from './repository/InMemoryRepository.js'
  *
  * Nothing else in the server knows or cares where the rows come from.
  */
-const repository = new InMemoryRepository()
+/*
+ * The one line the whole seam existed for. With DATABASE_URL set the server
+ * talks to Postgres — Supabase, Neon, RDS or local, it does not care; without
+ * it, the in-memory store, which is a complete implementation rather than a
+ * stub but loses everything on restart.
+ */
+const repository = env.databaseUrl
+  ? new PostgresRepository(env.databaseUrl)
+  : new InMemoryRepository()
 const bus = new EventBus()
 const service = new InfraPulseService(repository, bus, new OutboxNotifier())
 
@@ -54,6 +63,16 @@ if (
   process.exit(1)
 }
 
+if (repository instanceof PostgresRepository) {
+  // Fail at startup rather than on the first request that needs a table.
+  try {
+    await repository.verify()
+  } catch (error) {
+    console.error(`FATAL: ${(error as Error).message}`)
+    process.exit(1)
+  }
+}
+
 if (isProduction && !env.databaseUrl) {
   // Losing every road score on a restart is fine for a demo and unacceptable
   // for a deployment, so say so loudly rather than discovering it later.
@@ -64,7 +83,9 @@ if (isProduction && !env.databaseUrl) {
 
 serve({ fetch: app.fetch, port: env.port }, (info) => {
   console.log(`InfraPulse API listening on http://localhost:${info.port}`)
-  console.log(`  storage:  in-memory (no database configured)`)
+  console.log(
+    `  storage:  ${env.databaseUrl ? 'postgres' : 'in-memory (no database configured; data is lost on restart)'}`,
+  )
   console.log(`  cors:     ${env.corsOrigins.join(', ') || 'same-origin only'}`)
   console.log(`  demo:     ${env.enableDemoRoutes ? 'enabled' : 'disabled'}`)
   console.log(

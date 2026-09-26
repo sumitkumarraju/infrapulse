@@ -104,6 +104,15 @@ export class InMemoryRepository implements Repository {
     return this.histories.get(segmentId) ?? []
   }
 
+  async listRecentHistories(days: number): Promise<Map<number, DailyScore[]>> {
+    await this.init()
+    const recent = new Map<number, DailyScore[]>()
+    for (const [id, history] of this.histories) {
+      recent.set(id, history.slice(-days))
+    }
+    return recent
+  }
+
   async listLatestScores(): Promise<Map<number, number>> {
     await this.init()
     const latest = new Map<number, number>()

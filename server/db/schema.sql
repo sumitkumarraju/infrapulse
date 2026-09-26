@@ -176,3 +176,54 @@ CREATE TABLE work_order_events (
 );
 
 CREATE INDEX work_order_events_order_idx ON work_order_events (work_order_id, at);
+
+-- ---------------------------------------------------------------------------
+-- Escalations: complaints drafted for the authority that owns the road.
+--
+-- The letter text is stored rather than regenerated on read. A complaint that
+-- was sent is a record of what was actually said, and re-deriving it from
+-- today's condition would quietly rewrite history — the road has changed since.
+-- ---------------------------------------------------------------------------
+
+CREATE TYPE escalation_status AS ENUM
+    ('draft', 'approved', 'sent', 'dismissed');
+
+CREATE TYPE authority_kind AS ENUM ('national', 'state', 'municipal');
+
+CREATE TABLE escalations (
+    id                 text              PRIMARY KEY,
+    segment_id         integer           NOT NULL REFERENCES segments(id) ON DELETE CASCADE,
+    status             escalation_status NOT NULL DEFAULT 'draft',
+
+    -- Snapshotted, not joined: which office was written to, under the name it
+    -- had at the time. Offices are reorganised and addresses change.
+    authority_kind     authority_kind    NOT NULL,
+    authority_name     text              NOT NULL,
+    authority_email    text              NOT NULL DEFAULT '',
+
+    subject            text              NOT NULL,
+    body               text              NOT NULL,
+
+    lat                double precision  NOT NULL,
+    lon                double precision  NOT NULL,
+    maps_url           text              NOT NULL,
+
+    severity           text              NOT NULL,
+    photo_report_ids   text[]            NOT NULL DEFAULT '{}',
+    estimated_cost_inr bigint            NOT NULL,
+
+    created_at         timestamptz       NOT NULL DEFAULT now(),
+    approved_at        timestamptz,
+    sent_at            timestamptz,
+    dismissed_reason   text,
+
+    -- Nothing is sent without a person approving it first. Enforced here as
+    -- well as in the service, because this is the record anyone will audit.
+    CHECK (sent_at IS NULL OR approved_at IS NOT NULL),
+    CHECK (status <> 'sent' OR sent_at IS NOT NULL)
+);
+
+-- The 30-day cooldown asks "when was this segment last reported".
+CREATE INDEX escalations_segment_created_idx
+    ON escalations (segment_id, created_at DESC);
+CREATE INDEX escalations_status_idx ON escalations (status, created_at DESC);
