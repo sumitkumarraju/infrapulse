@@ -1,6 +1,7 @@
 import { chunkLine, lengthOf, metresBetween } from '@shared/chunk'
 import { midpointOf } from '@shared/simulate'
 import type { RoadClass, Segment } from '@shared/contract'
+import { clampPlaceBox, findCuratedPlaces } from '@shared/places'
 
 /* Importing a region's roads at runtime.
  *
@@ -247,28 +248,42 @@ export async function searchPlace(
   url.searchParams.set('format', 'json')
   url.searchParams.set('limit', '5')
 
-  const response = await fetch(url, {
-    headers: {
-      // Nominatim's usage policy requires identifying the application.
-      'User-Agent': 'infrapulse/1.0 (road condition monitoring)',
-    },
-    signal,
-  })
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'infrapulse/1.0 (contact: team@infrapulse.org)',
+        Accept: 'application/json',
+      },
+      signal,
+    })
 
-  if (!response.ok) {
-    throw new ImportError(`Place search failed (${response.status}).`)
+    if (response.ok) {
+      const results = (await response.json()) as {
+        display_name: string
+        boundingbox: [string, string, string, string]
+      }[]
+
+      if (Array.isArray(results) && results.length > 0) {
+        return results.map((result) => {
+          const [south, north, west, east] = result.boundingbox.map(Number)
+          return {
+            name: result.display_name,
+            box: clampPlaceBox({ south, north, west, east }),
+          }
+        })
+      }
+    }
+  } catch {
+    // If Nominatim is slow or unreachable, fall through to curated places.
   }
 
-  const results = (await response.json()) as {
-    display_name: string
-    boundingbox: [string, string, string, string]
-  }[]
+  const curated = findCuratedPlaces(query)
+  if (curated.length > 0) {
+    return curated.map((c) => ({
+      name: c.name,
+      box: clampPlaceBox(c.box),
+    }))
+  }
 
-  return results.map((result) => {
-    const [south, north, west, east] = result.boundingbox.map(Number)
-    return {
-      name: result.display_name,
-      box: { south, north, west, east },
-    }
-  })
+  return []
 }

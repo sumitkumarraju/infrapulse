@@ -244,9 +244,7 @@ export function createApp({
   )
 
   app.get('/api/segments/projected', async (c) => {
-    const { days } = projectedQuerySchema.parse(
-      Object.fromEntries(new URL(c.req.url).searchParams),
-    )
+    const { days } = projectedQuerySchema.parse(c.req.query())
     return c.json(await service.getProjected(days))
   })
 
@@ -341,9 +339,7 @@ export function createApp({
   app.get('/api/regions', async (c) => c.json(await service.getRegions()))
 
   app.get('/api/regions/search', async (c) => {
-    const { q } = placeSearchSchema.parse(
-      Object.fromEntries(new URL(c.req.url).searchParams),
-    )
+    const { q } = placeSearchSchema.parse(c.req.query())
     return c.json(await service.findPlaces(q))
   })
 

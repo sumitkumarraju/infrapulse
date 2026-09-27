@@ -7,14 +7,14 @@ import type { PlaceBox } from '@/data/DataSource'
 import { useRegions } from '@/data/hooks'
 import { usePlaceSearch } from '@/features/command/usePlaceSearch'
 import type { Region } from '@shared/contract'
+import { clampPlaceBox } from '@shared/places'
 import { cn } from '@/lib/utils'
 
 /**
  * Choosing, and adding, the area the system covers.
  *
- * The network used to be a committed file for one 3km box. Anywhere with roads
- * in OpenStreetMap can be imported now, which is what makes this a
- * road-condition system rather than a road-condition system for one campus.
+ * Anywhere with roads in OpenStreetMap can be imported now, which is what makes
+ * this a flexible road-condition system.
  *
  * An imported area arrives with geometry and no readings, and the panel says
  * so: claiming a road is in good condition because nobody has driven it yet is
@@ -34,25 +34,44 @@ export function RegionPicker({
   const [query, setQuery] = useState('')
   const [importing, setImporting] = useState(false)
 
-  // Results follow the typing, debounced and cached.
+  // Results follow the typing, debounced and cached with offline/curated fallbacks.
   const { results, searching, error } = usePlaceSearch(query)
 
   async function importPlace(place: { name: string; box: PlaceBox }) {
     setImporting(true)
     try {
-      // Nominatim returns the whole administrative area, which for a city is
-      // far more than one import should pull from a free shared service.
+      const trimmedName = place.name.split(',').slice(0, 2).join(',').trim()
+      const boxToUse = clampPlaceBox(place.box)
+
       const result = await dataSource.importRegion(
-        place.name.split(',').slice(0, 2).join(',').trim(),
-        place.box,
+        trimmedName,
+        boxToUse,
       )
 
       await queryClient.invalidateQueries()
-      toast.success(`${result.segments} road segments imported`, {
-        description:
-          'No condition data yet — these stay grey until vehicles report from them.',
-      })
+
+      // Fetch the updated region list and auto-select the newly added region
+      const updatedRegions = await dataSource.getRegions()
+      const newlyAdded =
+        updatedRegions.find((r) => r.id === result.regionId) ?? {
+          id: result.regionId,
+          name: result.name || trimmedName,
+          south: boxToUse.south,
+          west: boxToUse.west,
+          north: boxToUse.north,
+          east: boxToUse.east,
+          createdAt: new Date().toISOString(),
+          segmentCount: result.segments,
+          surveyedCount: 0,
+        }
+
+      onSelect(newlyAdded)
+      setOpen(false)
       setQuery('')
+
+      toast.success(`${result.segments} road segments imported`, {
+        description: `Active area switched to ${newlyAdded.name}.`,
+      })
     } catch (cause) {
       toast.error(String((cause as Error).message ?? cause), {
         duration: 9000,
@@ -125,7 +144,7 @@ export function RegionPicker({
                 ? 'Searching…'
                 : error
                   ? error
-                  : query.trim().length > 0 && query.trim().length < 3
+                  : query.trim().length > 0 && query.trim().length < 2
                     ? 'Keep typing…'
                     : results.length > 0
                       ? `${results.length} match${results.length === 1 ? '' : 'es'}`
@@ -143,14 +162,9 @@ export function RegionPicker({
                 const area =
                   (place.box.north - place.box.south) *
                   (place.box.east - place.box.west)
-                // The server refuses anything over 0.25 sq deg; saying so here
-                // saves a round trip and explains the refusal in advance.
-                const tooLarge = area > 0.25
+                const isLarge = area > 0.24
 
                 return (
-                  /* Nominatim returns distinct places with identical display
-                     names — two "Mohali, Rehli Tahsil, Sagar" came back in one
-                     response. The box is what actually distinguishes them. */
                   <li
                     key={`${place.name}:${place.box.south},${place.box.west}`}
                     role="option"
@@ -158,21 +172,27 @@ export function RegionPicker({
                   >
                     <button
                       type="button"
-                      disabled={importing || tooLarge}
+                      disabled={importing}
                       onClick={() => void importPlace(place)}
                       className={cn(
-                        'rounded-control w-full px-2 py-2 text-left text-xs',
-                        tooLarge
-                          ? 'text-text-3 cursor-not-allowed'
-                          : 'hover:bg-surface-2/60 text-text-2',
+                        'rounded-control w-full px-2 py-2 text-left text-xs transition-colors',
+                        'hover:bg-surface-2/80 text-text-1 group',
+                        importing && 'opacity-60 cursor-wait',
                       )}
                     >
-                      <span className="line-clamp-2">{place.name}</span>
-                      {tooLarge && (
-                        <span className="text-health-watch block">
-                          Too large for one import — zoom in on a district
-                        </span>
-                      )}
+                      <div className="flex items-start justify-between gap-1">
+                        <span className="line-clamp-2 font-medium">{place.name}</span>
+                        {isLarge && (
+                          <span className="shrink-0 text-[10px] text-accent bg-accent/10 px-1 py-0.5 rounded">
+                            Central zone
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-text-3 text-[11px] block mt-0.5">
+                        {isLarge
+                          ? 'Auto-clamps to city center (~15km) for Overpass limits'
+                          : 'Click to import road network'}
+                      </span>
                     </button>
                   </li>
                 )
@@ -189,3 +209,4 @@ export function RegionPicker({
     </GlassPanel>
   )
 }
+

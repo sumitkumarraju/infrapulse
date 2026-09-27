@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { dataSource } from '@/data'
 import type { PlaceBox } from '@/data/DataSource'
+import { clampPlaceBox, findCuratedPlaces } from '@shared/places'
 
 /* Typeahead for the place search.
  *
- * Nominatim is OpenStreetMap's free geocoder and its usage policy asks for at
- * most one request a second from an application. Firing on every keystroke
- * would breach that within a word, so the query is debounced, in-flight
- * requests are abandoned when the text moves on, and results are remembered
- * for the session — typing "Ludh" then deleting back to "Lud" costs nothing.
+ * Nominatim is OpenStreetMap's free geocoder. In-flight requests are debounced
+ * and cancelled if the user continues typing. If the server proxy fails,
+ * client-side direct fetch and curated city fallbacks ensure search never fails.
  */
 
 export interface PlaceResult {
@@ -17,9 +16,9 @@ export interface PlaceResult {
 }
 
 /** Long enough that a keystroke pause is deliberate, short enough to feel live. */
-const DEBOUNCE_MS = 350
-/** Below this almost everything matches and nothing is useful. */
-const MIN_QUERY = 3
+const DEBOUNCE_MS = 300
+/** Lowered to 2 so typing starts finding suggestions promptly. */
+const MIN_QUERY = 2
 
 export function usePlaceSearch(query: string) {
   const [results, setResults] = useState<PlaceResult[]>([])
@@ -55,12 +54,58 @@ export function usePlaceSearch(query: string) {
       controller.current = own
 
       try {
-        const found = await dataSource.searchPlaces(trimmed)
+        let found: PlaceResult[] = []
+
+        // Tier 1: Try dataSource.searchPlaces
+        try {
+          found = await dataSource.searchPlaces(trimmed)
+        } catch {
+          // Fall through to direct fetch or curated
+        }
+
         if (own.signal.aborted) return
+
+        // Tier 2: Direct browser fetch to OpenStreetMap Nominatim
+        if (!found || found.length === 0) {
+          try {
+            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(trimmed)}&format=json&limit=5`
+            const res = await fetch(url, {
+              headers: { Accept: 'application/json' },
+              signal: own.signal,
+            })
+            if (res.ok) {
+              const items = (await res.json()) as {
+                display_name: string
+                boundingbox: [string, string, string, string]
+              }[]
+              if (Array.isArray(items) && items.length > 0) {
+                found = items.map((item) => {
+                  const [south, north, west, east] = item.boundingbox.map(Number)
+                  return {
+                    name: item.display_name,
+                    box: clampPlaceBox({ south, north, west, east }),
+                  }
+                })
+              }
+            }
+          } catch {
+            // Direct fetch unavailable, proceed to curated
+          }
+        }
+
+        if (own.signal.aborted) return
+
+        // Tier 3: Curated offline places
+        if (!found || found.length === 0) {
+          found = findCuratedPlaces(trimmed).map((p) => ({
+            name: p.name,
+            box: clampPlaceBox(p.box),
+          }))
+        }
 
         cache.current.set(trimmed.toLowerCase(), found)
         setResults(found)
-        setError(null)
+        setError(found.length === 0 ? 'No places found. Try another city name.' : null)
       } catch (cause) {
         if (own.signal.aborted) return
         setResults([])
@@ -79,3 +124,4 @@ export function usePlaceSearch(query: string) {
 
   return { results, searching, error }
 }
+

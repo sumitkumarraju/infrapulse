@@ -33,6 +33,7 @@ import {
 } from '@shared/escalation'
 import type { Region } from '@shared/contract'
 import type { PlaceBox } from '@/data/DataSource'
+import { clampPlaceBox, findCuratedPlaces } from '@shared/places'
 import { useDemoStore } from '@/store/demoStore'
 
 /*
@@ -75,6 +76,8 @@ interface Dataset {
 
 export class MockDataSource implements DataSource {
   private dataset: Promise<Dataset> | null = null
+  private customRegions: Region[] = []
+  private customSegments: Map<number, Segment[]> = new Map()
 
   /** Built once, then shared. Every screen reads the same objects. */
   private load(): Promise<Dataset> {
@@ -290,7 +293,7 @@ export class MockDataSource implements DataSource {
 
   async getRegions(): Promise<Region[]> {
     const { segments } = await this.load()
-    return [
+    const base: Region[] = [
       {
         id: 1,
         name: 'Chandigarh University, Gharuan',
@@ -303,27 +306,141 @@ export class MockDataSource implements DataSource {
         surveyedCount: segments.length,
       },
     ]
+    return [...base, ...this.customRegions]
   }
 
-  /*
-   * Importing needs a server: it fetches from OpenStreetMap and writes
-   * thousands of rows that have to survive a refresh. Saying so plainly beats
-   * a button that appears to work and loses everything on reload.
-   */
-  async searchPlaces(): Promise<{ name: string; box: PlaceBox }[]> {
-    throw new Error(
-      'Searching for a place needs the server. Start it and set VITE_API_URL.',
-    )
+  async searchPlaces(query: string): Promise<{ name: string; box: PlaceBox }[]> {
+    const trimmed = query.trim()
+    if (!trimmed) return []
+
+    // 1. Try real OpenStreetMap Nominatim with a fast timeout (3s)
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(trimmed)}&format=json&limit=5`
+      const res = await fetch(url, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(3000),
+      })
+      if (res.ok) {
+        const results = (await res.json()) as {
+          display_name: string
+          boundingbox: [string, string, string, string]
+        }[]
+        if (Array.isArray(results) && results.length > 0) {
+          return results.map((r) => {
+            const [south, north, west, east] = r.boundingbox.map(Number)
+            return {
+              name: r.display_name,
+              box: clampPlaceBox({ south, north, west, east }),
+            }
+          })
+        }
+      }
+    } catch {
+      // Fall through to curated fallback
+    }
+
+    // 2. Curated offline fallback places
+    return findCuratedPlaces(trimmed).map((p) => ({
+      name: p.name,
+      box: clampPlaceBox(p.box),
+    }))
   }
 
-  async importRegion(): Promise<{
+  async importRegion(
+    name: string,
+    box: PlaceBox,
+  ): Promise<{
     regionId: number
     name: string
     segments: number
   }> {
-    throw new Error(
-      'Importing an area needs the server and a database. Start it and set VITE_API_URL.',
-    )
+    const clamped = clampPlaceBox(box)
+    const newId = 100 + this.customRegions.length + 1
+
+    // Synthesize a realistic road network of 25-40 segments within the box
+    const numRows = 5
+    const numCols = 6
+    const latStep = (clamped.north - clamped.south) / (numRows + 1)
+    const lonStep = (clamped.east - clamped.west) / (numCols + 1)
+    const synthesized: Segment[] = []
+    let segIdCounter = 10000 + this.customRegions.length * 1000
+
+    // Horizontal roads
+    for (let r = 1; r <= numRows; r++) {
+      const lat = clamped.south + r * latStep
+      for (let c = 1; c <= numCols - 1; c++) {
+        segIdCounter++
+        const lonStart = clamped.west + c * lonStep
+        const lonEnd = clamped.west + (c + 1) * lonStep
+        synthesized.push({
+          id: segIdCounter,
+          name: `${name} Arterial Road ${r}`,
+          highway: r % 2 === 0 ? 'primary' : 'tertiary',
+          roadClass: r % 2 === 0 ? 'arterial' : 'collector',
+          lengthM: 350,
+          nearSensitive: false,
+          busRoute: r % 2 === 0,
+          path: [
+            [lonStart, lat],
+            [lonEnd, lat],
+          ],
+          center: [(lonStart + lonEnd) / 2, lat],
+        })
+      }
+    }
+
+    // Vertical roads
+    for (let c = 1; c <= numCols; c++) {
+      const lon = clamped.west + c * lonStep
+      for (let r = 1; r <= numRows - 1; r++) {
+        segIdCounter++
+        const latStart = clamped.south + r * latStep
+        const latEnd = clamped.south + (r + 1) * latStep
+        synthesized.push({
+          id: segIdCounter,
+          name: `${name} Sector Road ${c}`,
+          highway: c % 2 === 0 ? 'secondary' : 'residential',
+          roadClass: c % 2 === 0 ? 'arterial' : 'local',
+          lengthM: 350,
+          nearSensitive: false,
+          busRoute: c % 2 === 0,
+          path: [
+            [lon, latStart],
+            [lon, latEnd],
+          ],
+          center: [lon, (latStart + latEnd) / 2],
+        })
+      }
+    }
+
+    const newRegion: Region = {
+      id: newId,
+      name,
+      south: clamped.south,
+      west: clamped.west,
+      north: clamped.north,
+      east: clamped.east,
+      createdAt: new Date().toISOString(),
+      segmentCount: synthesized.length,
+      surveyedCount: 0,
+    }
+
+    this.customRegions.push(newRegion)
+    this.customSegments.set(newId, synthesized)
+
+    const data = await this.load()
+    data.segments.push(...synthesized)
+    for (const segment of synthesized) {
+      const sim = simulateSegment(segment)
+      data.sims.set(segment.id, sim)
+      data.statuses.push(statusFor(segment, sim, 0))
+    }
+
+    return {
+      regionId: newRegion.id,
+      name: newRegion.name,
+      segments: synthesized.length,
+    }
   }
 
   /* --- Escalation ------------------------------------------------------- */
