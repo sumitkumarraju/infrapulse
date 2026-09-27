@@ -1,3 +1,4 @@
+import { getRequestListener } from '@hono/node-server'
 import { createApp } from './app.js'
 import { InfraPulseService } from './domain/service.js'
 import { EventBus } from './live/EventBus.js'
@@ -48,13 +49,21 @@ app.get('/api', (c) =>
   }),
 )
 
-const handler = (req: Request) => {
-  const url = new URL(req.url)
+const nodeListener = getRequestListener(app.fetch)
+
+// Unified handler: seamlessly handles Node (req, res) from Vercel Node runtime
+// AND Web standard Request/Response from Fetch / Edge runtime
+const handler = (req: any, res?: any) => {
+  if (res && typeof res.setHeader === 'function') {
+    return nodeListener(req, res)
+  }
+  const rawUrl = typeof req.url === 'string' ? req.url : ''
+  const url = new URL(rawUrl, 'http://localhost')
   if (!url.pathname.startsWith('/api')) {
     url.pathname = `/api${url.pathname}`
     return app.fetch(new Request(url.toString(), req))
   }
-  return app.fetch(req)
+  return app.fetch(req instanceof Request ? req : new Request(url.toString(), req))
 }
 
 export default handler

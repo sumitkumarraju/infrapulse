@@ -19,9 +19,18 @@ import type { Region } from '@shared/contract'
 import type { Escalation } from '@shared/escalation'
 import type { BumpObservation, Repository } from './Repository.js'
 
+import { existsSync } from 'node:fs'
+
 const HERE = dirname(fileURLToPath(import.meta.url))
 /** The road network is a build artefact of scripts/fetch-roads.ts. */
-const SEGMENTS_PATH = resolve(HERE, '../../../public/data/segments.geojson')
+const SEGMENTS_CANDIDATES = [
+  resolve(process.cwd(), 'public/data/segments.geojson'),
+  resolve(HERE, '../public/data/segments.geojson'),
+  resolve(HERE, '../../public/data/segments.geojson'),
+  resolve(HERE, '../../../public/data/segments.geojson'),
+]
+const SEGMENTS_PATH =
+  SEGMENTS_CANDIDATES.find((p) => existsSync(p)) ?? SEGMENTS_CANDIDATES[0]
 
 /**
  * A working store with no database behind it.
