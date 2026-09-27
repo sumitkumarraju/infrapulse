@@ -12,7 +12,12 @@ import { isLive } from '@/data'
  * stores a token — the browser attaches it and no script can read it.
  */
 
-const baseUrl = String(import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
+const baseUrl = String(
+  import.meta.env.VITE_API_URL ||
+    (typeof window !== 'undefined' && import.meta.env.PROD
+      ? window.location.origin
+      : ''),
+).replace(/\/$/, '')
 
 async function call(path: string, init?: RequestInit): Promise<Response> {
   return fetch(`${baseUrl}${path}`, {

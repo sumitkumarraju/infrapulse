@@ -1,4 +1,15 @@
 {
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@shared/*": ["./shared/*"]
+    },
+    "skipLibCheck": true
+  },
   "files": [],
   "references": [
     {
@@ -7,15 +18,5 @@
     {
       "path": "./tsconfig.node.json"
     }
-  ],
-  "compilerOptions": {
-    "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@shared/*": [
-        "./shared/*"
-      ]
-    }
-  }
+  ]
 }

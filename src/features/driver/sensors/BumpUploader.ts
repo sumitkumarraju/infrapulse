@@ -49,7 +49,13 @@ export class BumpUploader {
 
   constructor() {
     const url = import.meta.env.VITE_API_URL
-    this.baseUrl = isLive && url ? String(url).replace(/\/$/, '') : null
+    const defaultUrl =
+      typeof window !== 'undefined' && import.meta.env.PROD
+        ? window.location.origin
+        : ''
+    const resolvedUrl = url || defaultUrl
+    this.baseUrl =
+      isLive && resolvedUrl ? String(resolvedUrl).replace(/\/$/, '') : null
   }
 
   /** True when there is a server to send to at all. */

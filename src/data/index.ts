@@ -14,7 +14,15 @@ import { MockDataSource } from '@/data/mock/MockDataSource'
  * Nothing else in the app imports from `mock/` or `http/`, so this is the only
  * line that has to change.
  */
-const apiUrl = import.meta.env.VITE_API_URL
+const envUrl = import.meta.env.VITE_API_URL
+const apiUrl =
+  envUrl !== undefined && envUrl !== ''
+    ? envUrl === 'mock'
+      ? ''
+      : envUrl
+    : typeof window !== 'undefined' && import.meta.env.PROD
+      ? window.location.origin
+      : ''
 
 export const dataSource: DataSource = apiUrl
   ? new HttpDataSource(String(apiUrl).replace(/\/$/, ''))
