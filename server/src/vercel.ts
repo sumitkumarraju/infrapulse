@@ -1,9 +1,9 @@
-import { createApp } from '../server/src/app.js'
-import { InfraPulseService } from '../server/src/domain/service.js'
-import { EventBus } from '../server/src/live/EventBus.js'
-import { OutboxNotifier } from '../server/src/escalation/Notifier.js'
-import { InMemoryRepository } from '../server/src/repository/InMemoryRepository.js'
-import { PostgresRepository } from '../server/src/repository/PostgresRepository.js'
+import { createApp } from './app.js'
+import { InfraPulseService } from './domain/service.js'
+import { EventBus } from './live/EventBus.js'
+import { OutboxNotifier } from './escalation/Notifier.js'
+import { InMemoryRepository } from './repository/InMemoryRepository.js'
+import { PostgresRepository } from './repository/PostgresRepository.js'
 
 function list(value: string | undefined): string[] {
   return (value ?? '')

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build:api": "esbuild server/src/vercel.ts --bundle --platform=node --format=esm --target=node20 --outfile=api/index.js --external:pg --external:hono --external:zod --external:seedrandom",
+    "build": "npm run build:api && tsc -b && vite build",
     "preview": "vite preview",
     "lint": "oxlint",
     "format": "prettier --write .",
@@ -51,6 +52,7 @@
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.3",
+    "esbuild": "^0.28.2",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
     "@types/geojson": "^7946.0.16",
