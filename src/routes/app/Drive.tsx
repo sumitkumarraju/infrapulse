@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { CountUp } from '@/components/data-viz/Metric'
 import { useDemoStore } from '@/store/demoStore'
@@ -6,15 +7,36 @@ import { useDemoStore } from '@/store/demoStore'
 export function Drive() {
   const navigate = useNavigate()
   const liveBumps = useDemoStore((s) => s.liveBumps)
+  const [localStats, setLocalStats] = useState({ potholes: 0, trips: 0 })
+
+  useEffect(() => {
+    try {
+      const potholes = JSON.parse(
+        localStorage.getItem('infrapulse-local-potholes') || '[]',
+      )
+      const trips = JSON.parse(
+        localStorage.getItem('infrapulse-local-trips') || '[]',
+      )
+      setLocalStats({
+        potholes: potholes.length,
+        trips: trips.length,
+      })
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  const bumpsCount = Math.max(liveBumps, localStats.potholes)
+  const tripsCount = Math.max(localStats.trips, Math.round(bumpsCount / 12) || 1)
 
   return (
-    <div className="flex min-h-[calc(100vh-5rem)] flex-col items-center justify-center gap-10 px-6">
+    <div className="flex min-h-[calc(100vh-5rem)] flex-col items-center justify-center gap-8 px-6 py-4">
       <div className="flex flex-col items-center gap-2 text-center">
         <span className="eyebrow text-accent">InfraPulse driver</span>
         <h1 className="text-h2">Every drive maps a road</h1>
         <p className="text-text-2 max-w-sm text-sm">
           Mount the phone, start the trip, and drive normally. Bumps are
-          detected on the device — nothing but the bump is recorded.
+          detected on the device — route and potholes are marked on the map.
         </p>
       </div>
 
@@ -29,18 +51,27 @@ export function Drive() {
         </span>
       </button>
 
-      <div className="flex gap-10">
-        <div className="flex flex-col items-center">
-          <span className="eyebrow">Bumps logged</span>
-          <CountUp value={liveBumps} className="text-metric-lg" />
+      <div className="flex flex-col items-center gap-4">
+        <div className="flex gap-10">
+          <div className="flex flex-col items-center">
+            <span className="eyebrow">Bumps logged</span>
+            <CountUp value={bumpsCount} className="text-metric-lg" />
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="eyebrow">Trips</span>
+            <CountUp value={tripsCount} className="text-metric-lg" />
+          </div>
         </div>
-        <div className="flex flex-col items-center">
-          <span className="eyebrow">Trips</span>
-          <CountUp
-            value={Math.max(1, Math.round(liveBumps / 12))}
-            className="text-metric-lg"
-          />
-        </div>
+
+        {localStats.potholes > 0 && (
+          <button
+            type="button"
+            onClick={() => navigate('/app/map')}
+            className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 mt-1"
+          >
+            <span>🗺️</span> View {localStats.potholes} mapped potholes →
+          </button>
+        )}
       </div>
     </div>
   )

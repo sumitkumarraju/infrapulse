@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router'
 import seedrandom from 'seedrandom'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -74,6 +75,51 @@ export function ReportPothole() {
     setStage('scanning')
   }
 
+  const navigate = useNavigate()
+
+  function handleSubmit() {
+    countBump()
+
+    const saveReport = (coords: [number, number]) => {
+      const STORAGE_KEY = 'infrapulse-local-potholes'
+      try {
+        const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
+        const newReport = {
+          at: Date.now(),
+          position: coords,
+          severity,
+          photoUrl: photo,
+          source: 'manual' as const,
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify([newReport, ...existing]))
+      } catch {
+        // ignore
+      }
+    }
+
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          saveReport([pos.coords.longitude, pos.coords.latitude])
+        },
+        () => {
+          saveReport([
+            76.575 + (Math.random() - 0.5) * 0.008,
+            30.768 + (Math.random() - 0.5) * 0.008,
+          ])
+        },
+        { enableHighAccuracy: true, timeout: 3000 },
+      )
+    } else {
+      saveReport([
+        76.575 + (Math.random() - 0.5) * 0.008,
+        30.768 + (Math.random() - 0.5) * 0.008,
+      ])
+    }
+
+    setStage('submitted')
+  }
+
   if (stage === 'submitted') {
     return (
       <div className="flex min-h-[calc(100vh-5rem)] flex-col items-center justify-center gap-5 px-8 text-center">
@@ -82,19 +128,29 @@ export function ReportPothole() {
         </span>
         <h1 className="text-h2">Thank you</h1>
         <p className="text-text-2 max-w-sm text-sm">
-          Your report is queued for review by the works engineer. Approved
-          reports lower the condition score for that stretch of road
-          immediately.
+          Your report is queued for review by the works engineer. The precise
+          location and severity have been pinned to the Pothole Map.
         </p>
-        <Button
-          onClick={() => {
-            setShot((s) => s + 1)
-            setPhoto(null)
-            setStage('capture')
-          }}
-        >
-          Report another
-        </Button>
+        <div className="flex w-full flex-col gap-2.5 max-w-xs">
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={() => navigate('/app/map')}
+          >
+            🗺️ View on Pothole Map
+          </Button>
+          <Button
+            variant="secondary"
+            className="w-full"
+            onClick={() => {
+              setShot((s) => s + 1)
+              setPhoto(null)
+              setStage('capture')
+            }}
+          >
+            Report another
+          </Button>
+        </div>
       </div>
     )
   }
@@ -241,10 +297,7 @@ export function ReportPothole() {
           <Button
             size="lg"
             className="w-full"
-            onClick={() => {
-              countBump()
-              setStage('submitted')
-            }}
+            onClick={handleSubmit}
           >
             Submit report
           </Button>

@@ -308,9 +308,9 @@ export function Landing() {
         }}
       />
 
-      <div className="from-void via-void/40 pointer-events-none absolute inset-0 flex flex-col justify-end bg-gradient-to-t to-transparent p-10">
+      <div className="from-void via-void/40 pointer-events-none absolute inset-0 flex flex-col justify-end bg-gradient-to-t to-transparent p-5 sm:p-10">
         <motion.div
-          className="pointer-events-auto flex max-w-2xl flex-col items-start gap-5"
+          className="pointer-events-auto flex max-w-2xl flex-col items-start gap-4 sm:gap-5"
           animate={{ opacity: flying ? 0 : 1, y: flying ? 24 : 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >

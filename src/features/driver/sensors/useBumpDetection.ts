@@ -139,11 +139,16 @@ export function useBumpDetection(segmentIdForDemo: number | null = null) {
       }))
 
       if (step.impact) {
-        recordBump(
-          step.impact.magnitude,
+        const coords = lastPosition.current
+        const position: [number, number] | null =
           step.impact.lon !== null && step.impact.lat !== null
             ? [step.impact.lon, step.impact.lat]
-            : null,
+            : coords
+              ? [coords.longitude, coords.latitude]
+              : null
+        recordBump(
+          step.impact.magnitude,
+          position,
           step.impact.speedMs,
         )
       }
@@ -236,25 +241,57 @@ export function useBumpDetection(segmentIdForDemo: number | null = null) {
     setState((s) => ({ ...s, running: false }))
   }, [onMotion, onOrientation])
 
+const SIMULATED_WAYPOINTS: [number, number][] = [
+  [76.575, 30.768],
+  [76.5772, 30.7695],
+  [76.5805, 30.7715],
+  [76.5845, 30.7732],
+  [76.5885, 30.7745],
+  [76.592, 30.7725],
+  [76.59, 30.769],
+  [76.5855, 30.7665],
+  [76.5805, 30.7655],
+  [76.576, 30.7665],
+  [76.575, 30.768],
+]
+
   /**
    * Laptops have no accelerometer, so the demo drives itself — but through the
    * same detector, not around it. Synthetic samples go in as if they had come
    * from a phone lying flat, so the simulated path exercises the real code.
    */
+  const simProgress = useRef(0)
+  const simSegment = useRef(0)
+
   const simulate = useCallback(() => {
     if (simulating.current) return
-    setState((s) => ({ ...s, running: true, speedMs: 11 }))
+    simProgress.current = 0
+    simSegment.current = 0
+    const startPos = SIMULATED_WAYPOINTS[0]
+    setState((s) => ({ ...s, running: true, speedMs: 11, position: startPos }))
 
     simulating.current = setInterval(() => {
-      /* One hit every few seconds, not several a second.
-       *
-       * The first version fired on 6% of samples — a pothole every 0.8s — and
-       * detected none of them, which was the detector working correctly: the
-       * adaptive threshold rises to meet a road that rough, which is the whole
-       * point of the 4-sigma term. It only looked like a bug because the old
-       * simulator called recordBump directly and never went through the
-       * detector at all. Now that it does, the synthetic road has to be a road
-       * someone could plausibly drive. */
+      // Advance position along simulated waypoints
+      const p1 = SIMULATED_WAYPOINTS[simSegment.current]
+      const nextIdx = (simSegment.current + 1) % SIMULATED_WAYPOINTS.length
+      const p2 = SIMULATED_WAYPOINTS[nextIdx]
+
+      // Segment distance in meters
+      const dx = (p2[0] - p1[0]) * 111320 * Math.cos((p1[1] * Math.PI) / 180)
+      const dy = (p2[1] - p1[1]) * 110540
+      const segDist = Math.hypot(dx, dy) || 100
+
+      // In 50ms at 11m/s, we travel 0.55m
+      simProgress.current += (11 * 0.05) / segDist
+      if (simProgress.current >= 1) {
+        simProgress.current = 0
+        simSegment.current = nextIdx
+      }
+
+      const curLon = p1[0] + (p2[0] - p1[0]) * simProgress.current
+      const curLat = p1[1] + (p2[1] - p1[1]) * simProgress.current
+      const simPos: [number, number] = [curLon, curLat]
+
       const hit = Math.random() < 0.012
       const jolt = hit ? 11 + Math.random() * 8 : 0
       const sample: RawSample = {
@@ -264,8 +301,8 @@ export function useBumpDetection(segmentIdForDemo: number | null = null) {
         // Flat on a dash: gravity on z, road noise on top.
         z: 9.81 + (Math.random() - 0.5) * 2.0 + jolt,
         speedMs: 11,
-        lat: null,
-        lon: null,
+        lat: curLat,
+        lon: curLon,
       }
 
       if (
@@ -279,6 +316,7 @@ export function useBumpDetection(segmentIdForDemo: number | null = null) {
 
       setState((s) => ({
         ...s,
+        position: simPos,
         vertical: step.vertical,
         history: [...s.history.slice(-179), step.vertical],
         distanceM: s.distanceM + 11 / 20,
@@ -286,7 +324,7 @@ export function useBumpDetection(segmentIdForDemo: number | null = null) {
       }))
 
       if (step.impact) {
-        recordBump(step.impact.magnitude, null, step.impact.speedMs)
+        recordBump(step.impact.magnitude, simPos, step.impact.speedMs)
       }
     }, 50)
   }, [recordBump])

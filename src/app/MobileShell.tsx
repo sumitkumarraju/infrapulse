@@ -2,9 +2,10 @@ import { NavLink, Outlet } from 'react-router'
 import { cn } from '@/lib/utils'
 
 const TABS = [
-  { to: '/app', label: 'Drive', end: true },
-  { to: '/app/report', label: 'Report', end: false },
-  { to: '/app/impact', label: 'Impact', end: false },
+  { to: '/app', label: 'Drive', icon: '🚗', end: true },
+  { to: '/app/report', label: 'Report', icon: '📋', end: false },
+  { to: '/app/map', label: 'Map', icon: '🗺️', end: false },
+  { to: '/app/impact', label: 'Impact', icon: '📊', end: false },
 ]
 
 /**
@@ -36,14 +37,15 @@ export function MobileShell() {
           >
             {({ isActive }) => (
               <>
+                <span className="text-base" aria-hidden>{tab.icon}</span>
                 <span
-                  aria-hidden
                   className={cn(
-                    'size-1.5 rounded-full',
-                    isActive ? 'bg-accent' : 'bg-transparent',
+                    'text-[10px] font-medium',
+                    isActive && 'font-semibold',
                   )}
-                />
-                {tab.label}
+                >
+                  {tab.label}
+                </span>
               </>
             )}
           </NavLink>

@@ -12,6 +12,7 @@ import { Styleguide } from '@/routes/Styleguide'
 import { WorkOrders } from '@/routes/WorkOrders'
 import { Drive } from '@/routes/app/Drive'
 import { Impact } from '@/routes/app/Impact'
+import { PotholeMap } from '@/routes/app/PotholeMap'
 import { ReportPothole } from '@/routes/app/ReportPothole'
 import { Trip } from '@/routes/app/Trip'
 
@@ -37,8 +38,10 @@ export function AppRoutes() {
         <Route index element={<Drive />} />
         <Route path="trip" element={<Trip />} />
         <Route path="report" element={<ReportPothole />} />
+        <Route path="map" element={<PotholeMap />} />
         <Route path="impact" element={<Impact />} />
       </Route>
     </Routes>
   )
 }
+
