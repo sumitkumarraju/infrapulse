@@ -109,9 +109,13 @@ export class PostgresRepository implements Repository {
 
   /* --- Road network ------------------------------------------------------ */
 
-  async listSegments(): Promise<Segment[]> {
+  async listSegments(regionId?: number): Promise<Segment[]> {
+    const query = regionId
+      ? `SELECT ${SEGMENT_COLUMNS} FROM segments WHERE region_id = $1 ORDER BY id`
+      : `SELECT ${SEGMENT_COLUMNS} FROM segments WHERE region_id = 1 OR region_id IS NULL ORDER BY id LIMIT 2000`
     const { rows } = await this.pool.query<SegmentRow>(
-      `SELECT ${SEGMENT_COLUMNS} FROM segments ORDER BY id`,
+      query,
+      regionId ? [regionId] : [],
     )
     return rows.map(toSegment)
   }

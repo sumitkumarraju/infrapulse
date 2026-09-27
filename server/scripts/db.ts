@@ -188,10 +188,10 @@ async function importData() {
       await client.query(
         `INSERT INTO segments
            (id, osm_way_id, name, highway, road_class, length_m,
-            near_sensitive, bus_route, geom, center)
+            near_sensitive, bus_route, geom, center, region_id)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,
                  ST_GeomFromText($9, 4326),
-                 ST_SetSRID(ST_MakePoint($10, $11), 4326))
+                 ST_SetSRID(ST_MakePoint($10, $11), 4326), $12)
          ON CONFLICT (id) DO NOTHING`,
         [
           segment.id,
@@ -205,6 +205,7 @@ async function importData() {
           line,
           clon,
           clat,
+          1,
         ],
       )
     }
